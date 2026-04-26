@@ -446,7 +446,7 @@ class SuccessfulShot(EventBaseModel):
     solo: bool
     goal_zone: int
     current_result: str
-    assist: str
+    assist: Optional[str] = None
 
 class SavedShot(EventBaseModel):
     save_type: SaveType

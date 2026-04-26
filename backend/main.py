@@ -1,13 +1,14 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
+from events.broadcaster import BroadcastRegistry
+from events.router import router as events_router
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.broadcast_registry = BroadcastRegistry()
+    yield
+    await app.state.broadcast_registry.shutdown()
 
+app = FastAPI(lifespan=lifespan)
 
-@app.get("/")
-def read_root():
-    return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None):
-    return {"item_id": item_id, "q": q}
+app.include_router(events_router)
