@@ -9,11 +9,11 @@ def test_returns_list_of_positional_frames():
     frames = load_positional(TEST_XML)
     assert isinstance(frames, list)
     assert all(isinstance(f, PositionalFrame) for f in frames)
-    assert len(frames) == 3
+    assert len(frames) == 7
  
 def test_frame_n_values():
     frames = load_positional(TEST_XML)
-    assert [f.frame_n for f in frames] == ["10001", "10002", "10003"]
+    assert [f.frame_n for f in frames] == ["10001", "10002", "10003","100001","100002","100003", "100004"]
 
 def test_two_players_per_frame():
     frames = load_positional(TEST_XML)

@@ -12,15 +12,16 @@ class EventSimulator:
         speed: Playback speed multiplier.
                1.0 = real time, 60.0 = 1 match-minute per real second.
     """
-    def __init__(self, speed: float = 1.0):
+    def __init__(self, speed: float = 1.0, path: str = "./data/Events_Anonym.xml"):
         self.speed = speed
+        self.path = path
         self._events: list[MatchEvent] = []
     
     def load(self) -> None:
         """
         Parse the XML file and cache the event list in memory.
         """
-        self._events = load_events()
+        self._events = load_events(self.path)
 
     async def stream(self):
         """

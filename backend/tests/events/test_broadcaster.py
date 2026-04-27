@@ -1,10 +1,9 @@
 import asyncio
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
  
 import pytest
  
-from events.broadcaster import BroadcastRegistry, MatchBroadcaster
+from events.broadcaster import MatchBroadcaster, MatchBroadcastRegistry
 
 def mock_websocket():
     ws = MagicMock()
@@ -74,7 +73,7 @@ async def test_disconnect_removes_client():
  
 @pytest.mark.asyncio
 async def test_registry_reuses_broadcaster_for_same_match():
-    registry = BroadcastRegistry()
+    registry = MatchBroadcastRegistry()
  
     b1 = await registry.get_or_create("DFL-MAT-0025K6")
     b2 = await registry.get_or_create("DFL-MAT-0025K6")
@@ -86,7 +85,7 @@ async def test_registry_reuses_broadcaster_for_same_match():
  
 @pytest.mark.asyncio
 async def test_registry_creates_separate_broadcasters_per_match():
-    registry = BroadcastRegistry()
+    registry = MatchBroadcastRegistry()
  
     b1 = await registry.get_or_create("match-1")
     b2 = await registry.get_or_create("match-2")

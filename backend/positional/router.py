@@ -1,25 +1,25 @@
-import uuid
+from uuid import uuid4
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from common.models import ServerMessageType,ClientMessageType, WSClientMessage, WSServerMessage
-from events.broadcaster import MatchBroadcastRegistry
+from positional.broadcaster import PositionalBroadcastRegistry
 
-router = APIRouter(prefix="/events", tags=["events"])
- 
- 
+router = APIRouter(prefix="/positional", tags=["positional"])
+
+
 @router.websocket("/stream")
-async def event_stream(
+async def positional_stream(
     websocket: WebSocket,
     match_id: str = Query(..., description="Match identifier"),
     speed: float = Query(1.0, gt=0, le=600, description="Playback speed multiplier"),
     seq: int = Query(0, ge=0, description="Last received sequence number for catch-up"),
-): 
+):
     await websocket.accept()
 
-    registry: MatchBroadcastRegistry = websocket.app.state.match_broadcast_registry
-    broadcaster = await registry.get_or_create(match_id=match_id, speed=speed)
-
-    client_id = str(uuid.uuid4())
- 
+    registry: PositionalBroadcastRegistry = websocket.app.state.positional_broadcast_registry
+    broadcaster = await registry.get_or_create(match_id, speed=speed)
+    
+    client_id = str(uuid4())
+    
     await websocket.send_text(
         WSServerMessage(
             type=ServerMessageType.MATCH_START,

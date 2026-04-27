@@ -18,7 +18,7 @@ def _parse_element(element: etree._Element, regisrty: dict) -> tuple[str, object
 
     return model_cls(**attribs)
 
-def load_events(path: str = "./data/test.xml") -> list[MatchEvent]: 
+def load_events(path: str = "./data/Events_Anonym.xml") -> list[MatchEvent]: 
     tree = etree.parse(path)
     root = tree.getroot()
 

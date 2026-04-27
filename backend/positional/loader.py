@@ -12,13 +12,16 @@ class _RawFrame:
     speed: float; distance: float; acceleration: float
     team_id: str
 
-    # ball-only
+    # Ball-only
     z: Optional[float] = None
     status: Optional[str] = None
     possession: Optional[str] = None
 
 # frame_n -> person_id -> raw frame
-_FrameIndex = dict[int, dict[str, _RawFrame]]
+_FrameIndex = dict[str, dict[str, _RawFrame]]
+
+# frame_n -> game_section
+_SectionIndex = dict[str, str]
 
 def _to_float(val):
     try:
@@ -29,11 +32,12 @@ def _to_float(val):
 def _scatter_frameset(
     frameset_el: etree._Element,
     index: _FrameIndex,
-) -> tuple[str, str]:
+    sections: _SectionIndex,
+) -> str:
     """
-    Read one <FrameSet> and scatter its <Frame> children into *index*.
+    Read one <FrameSet> and scatter its <Frame> children into index.
  
-    Returns (match_id, game_section) from the FrameSet attributes.
+    Returns match_id from the FrameSet attributes.
     """
     match_id = frameset_el.get("MatchId")
     game_section = frameset_el.get("GameSection")
@@ -46,6 +50,7 @@ def _scatter_frameset(
             continue
  
         n = frame_el.get("N")
+        sections[n] = game_section
         timestamp = frame_el.get("T")
         x =  _to_float(frame_el.get("X"))
         y = _to_float(frame_el.get("Y"))
@@ -65,19 +70,19 @@ def _scatter_frameset(
  
         index[n][person_id] = frame
  
-    return match_id, game_section
+    return match_id
 
 def _assemble(
     index: _FrameIndex,
+    sections: _SectionIndex,
     match_id: str,
-    game_section: str,
 ) -> list[PositionalFrame]:
     """
-    Combine per-entity raw entries into sorted PositionalFrame instances.
+    Combine per-entity raw entries into PositionalFrame instances.
     """
     frames: list[PositionalFrame] = []
  
-    for n in sorted(index.keys()):
+    for n in index.keys():
         entities = index[n]
  
         players: list[PersonFrame] = []
@@ -120,7 +125,7 @@ def _assemble(
             PositionalFrame(
                 frame_n=n,
                 timestamp=timestamp,
-                game_section=game_section,
+                game_section=sections[n],
                 match_id=match_id,
                 players=players,
                 ball=ball,
@@ -133,10 +138,11 @@ def load_positional(path: str = "./data/Positions_Bayern_Hamburg.xml") -> list[P
     tree = etree.parse(path)
     root = tree.getroot()
     index: _FrameIndex = defaultdict(dict)
+    sections: _SectionIndex = {}
 
     for el in root.iter("FrameSet"):
-        match_id, game_section = _scatter_frameset(el, index)
+        match_id = _scatter_frameset(el, index, sections)
         el.clear()
     
 
-    return _assemble(index, match_id=match_id, game_section=game_section)
+    return _assemble(index, sections=sections, match_id=match_id)
