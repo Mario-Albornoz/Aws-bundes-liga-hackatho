@@ -2,6 +2,7 @@ from typing import Any
 from enum import Enum
 from pydantic import BaseModel
 
+
 class ServerMessageType(str, Enum):
     EVENT = "event"
     POSITIONAL = "positional"
@@ -9,6 +10,7 @@ class ServerMessageType(str, Enum):
     MATCH_END = "match_end"
     HEARTBEAT = "heartbeat"
     ERROR = "error"
+
 
 class ClientMessageType(str, Enum):
     PAUSE = "pause"
@@ -20,6 +22,7 @@ class WSServerMessage(BaseModel):
     seq: int
     match_id: str
     payload: Any
+
 
 class WSClientMessage(BaseModel):
     type: ClientMessageType

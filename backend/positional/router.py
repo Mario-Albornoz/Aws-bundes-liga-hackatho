@@ -1,7 +1,12 @@
 from uuid import uuid4
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from common.models import ServerMessageType,ClientMessageType, WSClientMessage, WSServerMessage
-from positional.broadcaster import PositionalBroadcastRegistry
+from common.models import (
+    ServerMessageType,
+    ClientMessageType,
+    WSClientMessage,
+    WSServerMessage,
+)
+from positional.PositionalBroadcastRegistry import PositionalBroadcastRegistry
 
 router = APIRouter(prefix="/positional", tags=["positional"])
 
@@ -15,11 +20,13 @@ async def positional_stream(
 ):
     await websocket.accept()
 
-    registry: PositionalBroadcastRegistry = websocket.app.state.positional_broadcast_registry
+    registry: PositionalBroadcastRegistry = (
+        websocket.app.state.positional_broadcast_registry
+    )
     broadcaster = await registry.get_or_create(match_id, speed=speed)
-    
+
     client_id = str(uuid4())
-    
+
     await websocket.send_text(
         WSServerMessage(
             type=ServerMessageType.MATCH_START,
@@ -39,10 +46,10 @@ async def positional_stream(
         while True:
             raw = await websocket.receive_text()
             client_msg = WSClientMessage.model_validate_json(raw)
- 
+
             if client_msg.type == ClientMessageType.PAUSE:
                 await broadcaster.disconnect(client_id)
- 
+
             elif client_msg.type == ClientMessageType.RESUME:
                 await broadcaster.connect(
                     client_id=client_id,
