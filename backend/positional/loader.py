@@ -1,32 +1,9 @@
+import sqlite3
+import os
 from lxml import etree
-from dataclasses import dataclass
-from typing import Optional
+from typing import Iterator
 from positional.models import PositionalFrame, PersonFrame, BallFrame
-from collections import defaultdict
 from datetime import datetime
-
-
-@dataclass
-class _RawFrame:
-    timestamp: str
-    x: float
-    y: float
-    speed: float
-    distance: float
-    acceleration: float
-    team_id: str
-
-    # Ball-only
-    z: Optional[float] = None
-    status: Optional[str] = None
-    possession: Optional[str] = None
-
-
-# frame_n -> person_id -> raw frame
-_FrameIndex = dict[str, dict[str, _RawFrame]]
-
-# frame_n -> game_section
-_SectionIndex = dict[str, str]
 
 
 def _to_float(val):
@@ -36,127 +13,163 @@ def _to_float(val):
         return None
 
 
-def _scatter_frameset(
-    frameset_el: etree._Element,
-    index: _FrameIndex,
-    sections: _SectionIndex,
-) -> str:
-    """
-    Read one <FrameSet> and scatter its <Frame> children into index.
-
-    Returns match_id from the FrameSet attributes.
-    """
-    match_id = frameset_el.get("MatchId")
-    game_section = frameset_el.get("GameSection")
-    team_id = frameset_el.get("TeamId")
-    person_id = frameset_el.get("PersonId")
-
-    for frame_el in frameset_el:
-        if frame_el.tag != "Frame":
-            continue
-
-        n = frame_el.get("N")
-        sections[n] = game_section
-        timestamp = frame_el.get("T")
-        x = _to_float(frame_el.get("X"))
-        y = _to_float(frame_el.get("Y"))
-        z = _to_float(frame_el.get("Z"))
-        speed = _to_float(frame_el.get("S"))
-        distance = _to_float(frame_el.get("D"))
-        acceleration = _to_float(frame_el.get("A"))
-        status = frame_el.get("BallStatus")
-        possession = frame_el.get("BallPossession")
-        frame = _RawFrame(
-            timestamp=timestamp,
-            x=x,
-            y=y,
-            z=z,
-            speed=speed,
-            distance=distance,
-            acceleration=acceleration,
-            status=status,
-            possession=possession,
-            team_id=team_id,
+def _create_tables(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE person_frames (
+            frame_n      INTEGER,
+            game_section TEXT,
+            match_id     TEXT,
+            timestamp    TEXT,
+            person_id    TEXT,
+            team_id      TEXT,
+            x            REAL,
+            y            REAL,
+            speed        REAL,
+            distance     REAL,
+            acceleration REAL
         )
+    """)
+    conn.execute("""
+        CREATE TABLE ball_frames (
+            frame_n      INTEGER,
+            game_section TEXT,
+            match_id     TEXT,
+            timestamp    TEXT,
+            x            REAL,
+            y            REAL,
+            z            REAL,
+            speed        REAL,
+            distance     REAL,
+            acceleration REAL,
+            status       TEXT,
+            possession   TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX idx_person_frame_n ON person_frames (frame_n)")
+    conn.execute("CREATE INDEX idx_ball_frame_n ON ball_frames (frame_n)")
+    conn.commit()
 
-        index[n][person_id] = frame
 
-    return match_id
+def _ingest(conn: sqlite3.Connection, path: str) -> None:
+    for _, el in etree.iterparse(path, events=("end",), tag="FrameSet"):
+        game_section = el.get("GameSection")
+        match_id = el.get("MatchId")
+        team_id = el.get("TeamId")
+        person_id = el.get("PersonId")
 
+        for frame_el in el:
+            if frame_el.tag != "Frame":
+                continue
 
-def _assemble(
-    index: _FrameIndex,
-    sections: _SectionIndex,
-    match_id: str,
-) -> list[PositionalFrame]:
-    """
-    Combine per-entity raw entries into PositionalFrame instances.
-    """
-    frames: list[PositionalFrame] = []
+            n = int(frame_el.get("N"))
+            timestamp = frame_el.get("T")
+            x = _to_float(frame_el.get("X"))
+            y = _to_float(frame_el.get("Y"))
+            speed = _to_float(frame_el.get("S"))
+            distance = _to_float(frame_el.get("D"))
+            acceleration = _to_float(frame_el.get("A"))
 
-    for n in index.keys():
-        entities = index[n]
-
-        players: list[PersonFrame] = []
-        ball: Optional[BallFrame] = None
-        timestamp = None
-
-        for person_id, entry in entities.items():
-            # Use the first valid timestamp we encounter for this frame N
-            if timestamp is None and entry.timestamp:
-                try:
-                    timestamp = datetime.fromisoformat(entry.timestamp)
-                except ValueError:
-                    continue
-
-            if entry.team_id == "BALL":
-                ball = BallFrame(
-                    x=entry.x,
-                    y=entry.y,
-                    z=entry.z,
-                    speed=entry.speed,
-                    distance=entry.distance,
-                    acceleration=entry.acceleration,
-                    status=entry.status,
-                    possession=entry.possession,
+            if team_id == "BALL":
+                conn.execute(
+                    "INSERT INTO ball_frames VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        n,
+                        game_section,
+                        match_id,
+                        timestamp,
+                        x,
+                        y,
+                        _to_float(frame_el.get("Z")),
+                        speed,
+                        distance,
+                        acceleration,
+                        frame_el.get("BallStatus"),
+                        frame_el.get("BallPossession"),
+                    ),
                 )
             else:
-                players.append(
-                    PersonFrame(
-                        person_id=person_id,
-                        team_id=entry.team_id,
-                        x=entry.x,
-                        y=entry.y,
-                        speed=entry.speed,
-                        distance=entry.distance,
-                        acceleration=entry.acceleration,
-                    )
+                conn.execute(
+                    "INSERT INTO person_frames VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        n,
+                        game_section,
+                        match_id,
+                        timestamp,
+                        person_id,
+                        team_id,
+                        x,
+                        y,
+                        speed,
+                        distance,
+                        acceleration,
+                    ),
                 )
 
-        frames.append(
-            PositionalFrame(
-                frame_n=n,
-                timestamp=timestamp,
-                game_section=sections[n],
-                match_id=match_id,
-                players=players,
-                ball=ball,
-            )
-        )
-
-    return frames
-
-
-def load_positional(
-    path: str = "./data/Positions_Bayern_Hamburg.xml",
-) -> list[PositionalFrame]:
-    tree = etree.parse(path)
-    root = tree.getroot()
-    index: _FrameIndex = defaultdict(dict)
-    sections: _SectionIndex = {}
-
-    for el in root.iter("FrameSet"):
-        match_id = _scatter_frameset(el, index, sections)
         el.clear()
 
-    return _assemble(index, sections=sections, match_id=match_id)
+    conn.commit()
+
+
+def load_positional_to_db(
+    path: str = "./data/Positions_Bayern_Hamburg.xml",
+) -> sqlite3.Connection:
+    db_path = path.rsplit(".", 1)[0] + ".db"
+    already_exists = os.path.exists(db_path)
+    conn = sqlite3.connect(db_path, check_same_thread=False)
+    if not already_exists:
+        _create_tables(conn)
+        _ingest(conn, path)
+    return conn
+
+
+def iter_frame_ns(conn: sqlite3.Connection) -> Iterator[int]:
+    # frame_n is globally unique across game sections.
+    cur = conn.execute("SELECT DISTINCT frame_n FROM person_frames ORDER BY frame_n")
+    for (frame_n,) in cur:
+        yield frame_n
+
+
+def get_frame(conn: sqlite3.Connection, frame_n: int) -> PositionalFrame:
+    rows = conn.execute(
+        """SELECT person_id, team_id, x, y, speed, distance, acceleration,
+                  game_section, match_id, timestamp
+           FROM person_frames WHERE frame_n = ?""",
+        (frame_n,),
+    ).fetchall()
+
+    persons = [
+        PersonFrame(
+            person_id=r[0],
+            team_id=r[1],
+            x=r[2],
+            y=r[3],
+            speed=r[4],
+            distance=r[5],
+            acceleration=r[6],
+        )
+        for r in rows
+    ]
+
+    ball = conn.execute(
+        """SELECT x, y, z, speed, distance, acceleration, status, possession
+           FROM ball_frames WHERE frame_n = ?""",
+        (frame_n,),
+    ).fetchone()
+
+    return PositionalFrame(
+        frame_n=str(frame_n),
+        timestamp=datetime.fromisoformat(rows[0][9]),
+        game_section=rows[0][7],
+        match_id=rows[0][8],
+        persons=persons,
+        ball=BallFrame(
+            x=ball[0],
+            y=ball[1],
+            z=ball[2],
+            speed=ball[3],
+            distance=ball[4],
+            acceleration=ball[5],
+            status=ball[6],
+            possession=ball[7],
+        ),
+    )

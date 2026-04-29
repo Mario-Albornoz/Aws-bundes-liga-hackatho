@@ -1,14 +1,9 @@
 import asyncio
+import sqlite3
+from datetime import datetime
 from common.models import ServerMessageType, WSServerMessage
-from positional.loader import load_positional
-from positional.models import PositionalFrame
+from positional.loader import load_positional_to_db, iter_frame_ns, get_frame
 from common.BaseSimulator import BaseSimulator
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-_SOURCE_HZ = int(os.getenv("SOURCE_HZ"))
 
 
 class PositionalSimulator(BaseSimulator):
@@ -20,36 +15,34 @@ class PositionalSimulator(BaseSimulator):
                1.0 = real time, 60.0 = 1 match-minute per real second.
     """
 
-    # "./data/Positions_Bayern_Hamburg.xml"
-    def __init__(self, speed: float = 1.0, path: str = "./data/test_positional.xml"):
+    def __init__(self, speed: float = 1.0, path: str = "Positions_Bayern_Hamburg.xml"):
         super().__init__(path=path, speed=speed)
-        self._frames: list[PositionalFrame] = []
-
-    async def _load(self):
-        """
-        Non-blocking load
-        """
-        loop = asyncio.get_running_loop()
-        self._frames = await loop.run_in_executor(None, load_positional, self.path)
 
     async def stream(self):
-        """
-        Async generator that yields WSMessage instances.
+        loop = asyncio.get_running_loop()
+        conn: sqlite3.Connection = await loop.run_in_executor(
+            None, load_positional_to_db, self.path
+        )
 
-        Yields:
-            WSMessage with type=POSITIONAL containing the MatchEvent payload.
-        """
-        if not self._frames:
-            await self._load()
+        prev_timestamp: datetime | None = None
 
-        interval = 1 / (_SOURCE_HZ * self.speed)
+        try:
+            for frame_n in iter_frame_ns(conn):
+                frame = get_frame(conn, frame_n)
 
-        for frame in self._frames:
-            yield WSServerMessage(
-                type=ServerMessageType.POSITIONAL,
-                seq=frame.frame_n,
-                match_id=frame.match_id,
-                payload=frame,
-            )
+                if prev_timestamp is not None:
+                    gap_seconds = (frame.timestamp - prev_timestamp).total_seconds()
+                    sleep_seconds = gap_seconds / self.speed
+                    if sleep_seconds > 0:
+                        await asyncio.sleep(sleep_seconds)
 
-            await asyncio.sleep(interval)
+                yield WSServerMessage(
+                    type=ServerMessageType.POSITIONAL,
+                    seq=frame.frame_n,
+                    match_id=frame.match_id,
+                    payload=frame,
+                )
+
+                prev_timestamp = frame.timestamp
+        finally:
+            conn.close()

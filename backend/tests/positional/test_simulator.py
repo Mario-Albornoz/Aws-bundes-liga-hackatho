@@ -23,7 +23,7 @@ async def test_all_messages_have_correct_type():
 async def test_payload_has_players():
     sim = PositionalSimulator(speed=10000, path=TEST_XML)
     async for msg in sim.stream():
-        assert len(msg.payload.players) == 2
+        assert len(msg.payload.persons) == 2
 
 
 @pytest.mark.asyncio

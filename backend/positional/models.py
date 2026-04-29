@@ -39,5 +39,5 @@ class PositionalFrame(BaseModel):
     timestamp: datetime
     game_section: str
     match_id: str
-    players: list[PersonFrame]
+    persons: list[PersonFrame]
     ball: BallFrame

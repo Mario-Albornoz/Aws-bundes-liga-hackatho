@@ -1,37 +1,31 @@
 import pytest
-from positional.loader import load_positional
+from positional.loader import load_positional_to_db, iter_frame_ns, get_frame
 from positional.models import PositionalFrame
 
 TEST_XML = "./data/test_positional.xml"
 
 
-def test_returns_list_of_positional_frames():
-    frames = load_positional(TEST_XML)
-    assert isinstance(frames, list)
-    assert all(isinstance(f, PositionalFrame) for f in frames)
-    assert len(frames) == 7
+def test_returns_correct_frame_ns():
+    conn = load_positional_to_db(TEST_XML)
+    assert list(iter_frame_ns(conn)) == [10001, 10002, 10003, 100001, 100002, 100003, 100004]
 
 
-def test_frame_n_values():
-    frames = load_positional(TEST_XML)
-    assert [f.frame_n for f in frames] == [
-        "10001",
-        "10002",
-        "10003",
-        "100001",
-        "100002",
-        "100003",
-        "100004",
-    ]
+def test_get_frame_returns_positional_frame():
+    conn = load_positional_to_db(TEST_XML)
+    frame = get_frame(conn, 10001)
+    assert isinstance(frame, PositionalFrame)
+    assert frame.frame_n == "10001"
 
 
-def test_two_players_per_frame():
-    frames = load_positional(TEST_XML)
-    for frame in frames:
-        assert len(frame.players) == 2
+def test_two_persons_per_frame():
+    conn = load_positional_to_db(TEST_XML)
+    for n in iter_frame_ns(conn):
+        frame = get_frame(conn, n)
+        assert len(frame.persons) == 2
 
 
 def test_ball_present_in_every_frame():
-    frames = load_positional(TEST_XML)
-    for frame in frames:
+    conn = load_positional_to_db(TEST_XML)
+    for n in iter_frame_ns(conn):
+        frame = get_frame(conn, n)
         assert frame.ball is not None
