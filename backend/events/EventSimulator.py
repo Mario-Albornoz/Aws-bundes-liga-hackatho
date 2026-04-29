@@ -1,5 +1,4 @@
-from events.models import MatchEvent
-from events.loader import load_events
+from events.loader import iter_events
 from datetime import datetime
 from common.models import ServerMessageType, WSServerMessage
 import asyncio
@@ -15,16 +14,8 @@ class EventSimulator(BaseSimulator):
                1.0 = real time, 60.0 = 1 match-minute per real second.
     """
 
-    # "./data/Events_Anonym.xml"
-    def __init__(self, speed: float = 1.0, path: str = "./data/test.xml"):
+    def __init__(self, speed: float = 1.0, path: str = "./data/Events_Anonym.xml"):
         super().__init__(path=path, speed=speed)
-        self._events: list[MatchEvent] = []
-
-    def _load(self) -> None:
-        """
-        Parse the XML file and cache the event list in memory.
-        """
-        self._events = load_events(self.path)
 
     async def stream(self):
         """
@@ -36,31 +27,34 @@ class EventSimulator(BaseSimulator):
         Yields:
             WSMessage with type=EVENT containing the MatchEvent payload.
         """
-        if not self._events:
-            self._load()
-
-        match_id = self._events[0].match_id
         seq = 0
+        match_id = None
         prev_event_time: datetime | None = None
 
-        for event in self._events:
-            seq += 1
+        loop = asyncio.get_running_loop()
+        gen = iter_events(self.path)
 
-            if prev_event_time is not None:
-                gap_seconds = (event.event_time - prev_event_time).total_seconds()
-                sleep_seconds = gap_seconds / self.speed
-                if sleep_seconds > 0:
-                    await asyncio.sleep(sleep_seconds)
+        while True:
+            chunk = await loop.run_in_executor(None, next, gen, None)
+            if chunk is None:
+                break
+            for event in chunk:
+                if match_id is None:
+                    match_id = event.match_id
 
-            prev_event_time = event.event_time
+                seq += 1
 
-            yield WSServerMessage(
-                type=ServerMessageType.EVENT,
-                seq=seq,
-                match_id=match_id,
-                payload=event,
-            )
+                if prev_event_time is not None:
+                    gap_seconds = (event.event_time - prev_event_time).total_seconds()
+                    sleep_seconds = gap_seconds / self.speed
+                    if sleep_seconds > 0:
+                        await asyncio.sleep(sleep_seconds)
 
-    @property
-    def event_count(self) -> int:
-        return len(self._events)
+                prev_event_time = event.event_time
+
+                yield WSServerMessage(
+                    type=ServerMessageType.EVENT,
+                    seq=seq,
+                    match_id=match_id,
+                    payload=event,
+                )

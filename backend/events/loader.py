@@ -1,6 +1,13 @@
 from lxml import etree
 from events.models import EVENTS_REGISTRY, SUBELEMENTS_REGISTRY, MatchEvent
 from datetime import datetime
+from typing import Generator
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE"))
 
 
 def _parse_element(element: etree._Element, regisrty: dict) -> tuple[str, object]:
@@ -24,13 +31,12 @@ def _parse_element(element: etree._Element, regisrty: dict) -> tuple[str, object
     return model_cls(**attribs)
 
 
-def load_events(path: str = "./data/Events_Anonym.xml") -> list[MatchEvent]:
-    tree = etree.parse(path)
-    root = tree.getroot()
+def iter_events(
+    path: str = "./data/Events_Anonym.xml",
+) -> Generator[list[MatchEvent], None, None]:
+    buffer: list[MatchEvent] = []
 
-    events: list[MatchEvent] = []
-
-    for el in root.iter("Event"):
+    for _, el in etree.iterparse(path, events=("end",), tag="Event"):
         event_id = el.get("EventId")
         match_id = el.get("MatchId")
         raw_time = el.get("EventTime")
@@ -38,16 +44,18 @@ def load_events(path: str = "./data/Events_Anonym.xml") -> list[MatchEvent]:
         try:
             event_time = datetime.fromisoformat(raw_time)
         except ValueError:
+            el.clear()
             continue
 
         children = list(el)
         if not children:
+            el.clear()
             continue
 
         event_type = children[0].tag
         subelement = _parse_element(children[0], EVENTS_REGISTRY)
 
-        events.append(
+        buffer.append(
             MatchEvent(
                 event_id=event_id,
                 match_id=match_id,
@@ -57,5 +65,13 @@ def load_events(path: str = "./data/Events_Anonym.xml") -> list[MatchEvent]:
             )
         )
 
-    events.sort(key=lambda e: e.event_time)
-    return events
+        el.clear()
+
+        if len(buffer) >= CHUNK_SIZE:
+            buffer.sort(key=lambda e: e.event_time)
+            yield buffer
+            buffer = []
+
+    if buffer:
+        buffer.sort(key=lambda e: e.event_time)
+        yield buffer

@@ -18,6 +18,6 @@ class EventBroadcaster(BaseBroadcaster):
             type=ServerMessageType.MATCH_END,
             seq=-1,
             match_id=self.match_id,
-            payload={"total_events": self._simulator.event_count},
+            payload=None,
         )
         await self._broadcast(end_message)

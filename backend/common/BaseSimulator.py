@@ -15,12 +15,6 @@ class BaseSimulator:
         self.speed: float = speed
         self.path: str = path
 
-    def _load(self) -> None:
-        """
-        Parse the XML file and cache the list in memory.
-        """
-        raise NotImplementedError
-
     async def stream(self):
         """
         Async generator that yields WSMessage instances.
