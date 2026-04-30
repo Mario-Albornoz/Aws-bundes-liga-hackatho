@@ -1,0 +1,24 @@
+from common.models import ServerMessageType, WSServerMessage
+from events.EventSimulator import EventSimulator
+from common.BaseBroadcaster import BaseBroadcaster
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+
+class EventBroadcaster(BaseBroadcaster):
+    BUFFER_SIZE = int(os.getenv("EVENT_BUFFER"))
+    QUEUE_SIZE = int(os.getenv("EVENT_QUEUE_SIZE"))
+
+    def __init__(self, match_id: str, speed: float = 1.0) -> None:
+        super().__init__(match_id, speed, simulator_class=EventSimulator)
+
+    async def _on_stream_exhausted(self) -> None:
+        end_message = WSServerMessage(
+            type=ServerMessageType.MATCH_END,
+            seq=-1,
+            match_id=self.match_id,
+            payload=None,
+        )
+        await self._broadcast(end_message)
