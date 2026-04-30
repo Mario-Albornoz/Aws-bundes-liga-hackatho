@@ -8,17 +8,23 @@ from common.BaseSimulator import BaseSimulator
 
 class BaseBroadcaster:
     """
-    Manages a single stream and broadcast to all connected clients.
+    Manages a single stream and broadcasts to all connected clients.
 
-    One instance per match. A buffer keeps recent messages so reconnecting clients
-    can catch up before joining the live stream.
+    One instance per match. A buffer keeps recent messages so reconnecting
+    clients can catch up before joining the live stream.
+
+    Live messages are placed into per-client asyncio queues. The router's
+    consumer task is responsible for draining each queue and sending over
+    the WebSocket.
 
     Subclasses override:
-        BUFFER_SIZE        — buffer capacity
+        BUFFER_SIZE            — replay buffer capacity
+        QUEUE_SIZE             — per-client live-message queue capacity
         _on_stream_exhausted() — called when the simulator yields nothing more
     """
 
     BUFFER_SIZE: int
+    QUEUE_SIZE: int
 
     def __init__(
         self, match_id: str, speed: float, simulator_class: BaseSimulator
@@ -28,22 +34,14 @@ class BaseBroadcaster:
         self._simulator: BaseSimulator = simulator_class(speed=speed)
         self._task: Optional[asyncio.Task] = None
         self._buffer: deque[WSServerMessage] = deque(maxlen=self.BUFFER_SIZE)
-        self._clients: dict[str, WebSocket] = {}
+        self._clients: dict[str, asyncio.Queue] = {}
         self._lock = asyncio.Lock()
 
     async def start(self):
-        """
-        Start the simulator background task.
-        """
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._run())
 
     async def stop(self):
-        """
-        Cancel the simulator task and clear all connected clients.
-
-        Called by BroadcastRegistry.shutdown() on application shutdown.
-        """
         if self._task:
             self._task.cancel()
             try:
@@ -52,73 +50,46 @@ class BaseBroadcaster:
                 pass
         self._clients.clear()
 
-    async def connect(self, client_id: str, websocket: WebSocket, resume_seq: int = 0):
+    async def connect(
+        self, client_id: str, websocket: WebSocket, resume_seq: int = 0
+    ) -> asyncio.Queue:
         """
-        Register a client and replay any missed messages from the buffer.
+        Register a client, replay missed messages, and return the client's queue.
 
-        Args:
-            client_id:  Unique identifier for this client connection (UUID).
-            websocket:  The client's WebSocket connection.
-            resume_seq: Last sequence number the client received. Messages
-                        with seq > resume_seq are replayed before going live.
+        The caller (router) is responsible for consuming the returned queue
+        and forwarding messages to the WebSocket.
         """
+        queue: asyncio.Queue = asyncio.Queue(maxsize=self.QUEUE_SIZE)
         async with self._lock:
-            self._clients[client_id] = websocket
-
+            self._clients[client_id] = queue
         await self._catchup(websocket, resume_seq)
+        return queue
 
     async def disconnect(self, client_id: str):
-        """
-        Remove a client from the active recipient list.
-
-        Args:
-            client_id:  Unique identifier for this client connection (UUID).
-        """
         async with self._lock:
             self._clients.pop(client_id, None)
 
     async def _run(self):
-        """
-        Background task body. Iterates the simulator and broadcasts each message.
-        """
         async for message in self._simulator.stream():
             self._buffer.append(message)
             await self._broadcast(message)
-
         await self._on_stream_exhausted()
 
     async def _broadcast(self, message: WSServerMessage) -> None:
-        """Send a message to all connected clients"""
         if not self._clients:
             return
 
         payload = message.model_dump_json()
-        disconnected = []
-
         async with self._lock:
             clients = list(self._clients.items())
 
-        for client_id, websocket in clients:
+        for client_id, queue in clients:
             try:
-                await websocket.send_text(payload)
-            except Exception:
-                disconnected.append(client_id)
-
-        for client_id in disconnected:
-            await self.disconnect(client_id)
+                queue.put_nowait(payload)
+            except asyncio.QueueFull:
+                await self.disconnect(client_id)
 
     async def _catchup(self, websocket: WebSocket, resumed_seq: int):
-        """
-        Replay buffered messages with seq > resume_seq to a single client.
-
-        Called once per connect() call, before the client is added to the
-        live recipient list.
-
-        Args:
-            websocket:  The client's WebSocket connection.
-            resume_seq: Last sequence number the client received. Messages
-                        with seq > resume_seq are replayed before going live.
-        """
         missed = [msg for msg in self._buffer if msg.seq > resumed_seq]
         for message in missed:
             try:
@@ -127,7 +98,7 @@ class BaseBroadcaster:
                 return
 
     async def _on_stream_exhausted(self) -> None:
-        """Called when the simulator stream ends. Override to send MATCH_END etc."""
+        pass
 
     @property
     def client_count(self) -> int:

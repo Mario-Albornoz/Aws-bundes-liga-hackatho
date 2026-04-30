@@ -15,7 +15,9 @@ class PositionalSimulator(BaseSimulator):
                1.0 = real time, 60.0 = 1 match-minute per real second.
     """
 
-    def __init__(self, speed: float = 1.0, path: str = "Positions_Bayern_Hamburg.xml"):
+    def __init__(
+        self, speed: float = 1.0, path: str = "./data/Positions_Bayern_Hamburg.xml"
+    ):
         super().__init__(path=path, speed=speed)
 
     async def stream(self):

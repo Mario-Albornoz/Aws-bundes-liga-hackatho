@@ -1,5 +1,7 @@
+import asyncio
 from uuid import uuid4
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
+from common.consume_queue import consume_queue
 from common.models import (
     ServerMessageType,
     ClientMessageType,
@@ -40,7 +42,10 @@ async def positional_stream(
         ).model_dump_json()
     )
 
-    await broadcaster.connect(client_id=client_id, websocket=websocket, resume_seq=seq)
+    queue = await broadcaster.connect(
+        client_id=client_id, websocket=websocket, resume_seq=seq
+    )
+    consumer_task = asyncio.create_task(consume_queue(queue, websocket))
 
     try:
         while True:
@@ -48,13 +53,16 @@ async def positional_stream(
             client_msg = WSClientMessage.model_validate_json(raw)
 
             if client_msg.type == ClientMessageType.PAUSE:
+                consumer_task.cancel()
                 await broadcaster.disconnect(client_id)
 
             elif client_msg.type == ClientMessageType.RESUME:
-                await broadcaster.connect(
+                queue = await broadcaster.connect(
                     client_id=client_id,
                     websocket=websocket,
                     resume_seq=seq,
                 )
+                consumer_task = asyncio.create_task(consume_queue(queue, websocket))
     except WebSocketDisconnect:
+        consumer_task.cancel()
         await broadcaster.disconnect(client_id)
