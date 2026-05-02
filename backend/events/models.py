@@ -184,7 +184,7 @@ class TypeShot(CaseInsensitiveEnum):
     freekick = "freekick"
 
 
-class BallContol(CaseInsensitiveEnum):
+class BallControl(CaseInsensitiveEnum):
     direct = "direct"
     volley = "volley"
     controlShot = "controlShot"
@@ -556,7 +556,7 @@ class ShotAtGoal(EventBaseModel):
     assist_shot_at_goal: Optional[str] = None
     assist_type_shot_at_goal: Optional[TypeShot] = None
     shot_assist_fouled_player: Optional[str] = None
-    taker_ball_control: BallContol
+    taker_ball_control: BallControl
     taker_setup: Setup
     sitter_contribution: Optional[str] = None
     build_up: BuildUp
@@ -619,7 +619,7 @@ class OwnGoal(EventBaseModel):
     current_result: str
     shot_origin: int
     goal_zone: int
-    scorer_ball_touch: BallContol
+    scorer_ball_touch: BallControl
     scorer_setup: Setup
     build_up: BuildUp
     setup_origin: SetupOrigin
