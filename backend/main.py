@@ -1,9 +1,14 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from events.EventBroadcastRegistry import EventBroadcastRegistry
-from events.router import router as events_router
-from positional.PositionalBroadcastRegistry import PositionalBroadcastRegistry
-from positional.router import router as positional_router
+
+from fastapi import FastAPI
+
+from api.components.communication.router import router as chat_room_router
+from feed_simulator.events.EventBroadcastRegistry import EventBroadcastRegistry
+from feed_simulator.events.router import router as events_router
+from feed_simulator.positional.PositionalBroadcastRegistry import (
+    PositionalBroadcastRegistry,
+)
+from feed_simulator.positional.router import router as positional_router
 
 
 @asynccontextmanager
@@ -20,3 +25,5 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(events_router)
 
 app.include_router(positional_router)
+
+app.include_router(chat_room_router)
