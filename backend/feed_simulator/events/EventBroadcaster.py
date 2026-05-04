@@ -1,6 +1,6 @@
-from common.models import ServerMessageType, WSServerMessage
-from events.EventSimulator import EventSimulator
-from common.BaseBroadcaster import BaseBroadcaster
+from feed_simulator.common.models import ServerMessageType, WSServerMessage
+from feed_simulator.events.EventSimulator import EventSimulator
+from feed_simulator.common.BaseBroadcaster import BaseBroadcaster
 from dotenv import load_dotenv
 import os
 

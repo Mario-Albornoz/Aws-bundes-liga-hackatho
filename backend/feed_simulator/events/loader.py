@@ -1,5 +1,5 @@
 from lxml import etree
-from events.models import EVENTS_REGISTRY, SUBELEMENTS_REGISTRY, MatchEvent
+from feed_simulator.events.models import EVENTS_REGISTRY, SUBELEMENTS_REGISTRY, MatchEvent
 from datetime import datetime
 from typing import Generator
 from dotenv import load_dotenv

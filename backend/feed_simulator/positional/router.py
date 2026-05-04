@@ -1,14 +1,14 @@
 import asyncio
 from uuid import uuid4
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from common.consume_queue import consume_queue
-from common.models import (
+from feed_simulator.common.consume_queue import consume_queue
+from feed_simulator.common.models import (
     ServerMessageType,
     ClientMessageType,
     WSClientMessage,
     WSServerMessage,
 )
-from positional.PositionalBroadcastRegistry import PositionalBroadcastRegistry
+from feed_simulator.positional.PositionalBroadcastRegistry import PositionalBroadcastRegistry
 
 router = APIRouter(prefix="/positional", tags=["positional"])
 

@@ -1,5 +1,5 @@
-from common.BroadcastRegistry import BroadcastRegistry
-from events.EventBroadcaster import EventBroadcaster
+from feed_simulator.common.BroadcastRegistry import BroadcastRegistry
+from feed_simulator.events.EventBroadcaster import EventBroadcaster
 
 
 class EventBroadcastRegistry(BroadcastRegistry):

@@ -1,14 +1,14 @@
 import asyncio
 import uuid
 from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
-from common.consume_queue import consume_queue
-from common.models import (
+from feed_simulator.common.consume_queue import consume_queue
+from feed_simulator.common.models import (
     ServerMessageType,
     ClientMessageType,
     WSClientMessage,
     WSServerMessage,
 )
-from events.EventBroadcastRegistry import EventBroadcastRegistry
+from feed_simulator.events.EventBroadcastRegistry import EventBroadcastRegistry
 
 router = APIRouter(prefix="/events", tags=["events"])
 

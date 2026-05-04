@@ -1,6 +1,6 @@
 import pytest
-from positional.loader import load_positional_to_db, iter_frame_ns, get_frame
-from positional.models import PositionalFrame
+from feed_simulator.positional.loader import load_positional_to_db, iter_frame_ns, get_frame
+from feed_simulator.positional.models import PositionalFrame
 
 TEST_XML = "./data/test_positional.xml"
 

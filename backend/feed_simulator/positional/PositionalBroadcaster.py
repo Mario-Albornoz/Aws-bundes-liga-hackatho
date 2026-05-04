@@ -1,6 +1,6 @@
-from positional.PositionalSimulator import PositionalSimulator
-from common.BaseBroadcaster import BaseBroadcaster
-from common.models import ServerMessageType, WSServerMessage
+from feed_simulator.positional.PositionalSimulator import PositionalSimulator
+from feed_simulator.common.BaseBroadcaster import BaseBroadcaster
+from feed_simulator.common.models import ServerMessageType, WSServerMessage
 from dotenv import load_dotenv
 import os
 

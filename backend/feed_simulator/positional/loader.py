@@ -2,7 +2,7 @@ import sqlite3
 import os
 from lxml import etree
 from typing import Iterator
-from positional.models import PositionalFrame, PersonFrame, BallFrame
+from feed_simulator.positional.models import PositionalFrame, PersonFrame, BallFrame
 from datetime import datetime
 
 

@@ -1,6 +1,6 @@
 import pytest
-from common.models import ServerMessageType
-from events.EventSimulator import EventSimulator
+from feed_simulator.common.models import ServerMessageType
+from feed_simulator.events.EventSimulator import EventSimulator
 
 TEST_XML = "./data/test.xml"
 
