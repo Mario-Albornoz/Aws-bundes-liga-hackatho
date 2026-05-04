@@ -1,6 +1,6 @@
 import pytest
-from common.models import ServerMessageType
-from positional.PositionalSimulator import PositionalSimulator
+from feed_simulator.common.models import ServerMessageType
+from feed_simulator.positional.PositionalSimulator import PositionalSimulator
 
 TEST_XML = "./data/test_positional.xml"
 

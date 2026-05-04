@@ -1,7 +1,7 @@
 import pytest
-import events.loader as loader_mod
-from events.loader import iter_events
-from events.models import KickOff, GameSection, Play, Pass
+import feed_simulator.events.loader as loader_mod
+from feed_simulator.events.loader import iter_events
+from feed_simulator.events.models import KickOff, GameSection, Play, Pass
 
 TEST_XML = "./data/test.xml"
 

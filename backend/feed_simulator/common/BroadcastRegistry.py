@@ -1,4 +1,4 @@
-from common.BaseBroadcaster import BaseBroadcaster
+from feed_simulator.common.BaseBroadcaster import BaseBroadcaster
 
 
 class BroadcastRegistry:

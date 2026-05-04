@@ -1,5 +1,5 @@
-from common.BroadcastRegistry import BroadcastRegistry
-from positional.PositionalBroadcaster import PositionalBroadcaster
+from feed_simulator.common.BroadcastRegistry import BroadcastRegistry
+from feed_simulator.positional.PositionalBroadcaster import PositionalBroadcaster
 
 
 class PositionalBroadcastRegistry(BroadcastRegistry):

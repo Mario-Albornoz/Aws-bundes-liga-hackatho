@@ -1,9 +1,9 @@
 import asyncio
 import sqlite3
 from datetime import datetime
-from common.models import ServerMessageType, WSServerMessage
-from positional.loader import load_positional_to_db, iter_frame_ns, get_frame
-from common.BaseSimulator import BaseSimulator
+from feed_simulator.common.models import ServerMessageType, WSServerMessage
+from feed_simulator.positional.loader import load_positional_to_db, iter_frame_ns, get_frame
+from feed_simulator.common.BaseSimulator import BaseSimulator
 
 
 class PositionalSimulator(BaseSimulator):

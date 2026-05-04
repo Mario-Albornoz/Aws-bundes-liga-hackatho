@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from events.EventBroadcaster import EventBroadcaster
-from events.EventBroadcastRegistry import EventBroadcastRegistry
+from feed_simulator.events.EventBroadcaster import EventBroadcaster
+from feed_simulator.events.EventBroadcastRegistry import EventBroadcastRegistry
 
 
 def mock_websocket():

@@ -1,8 +1,8 @@
-from events.loader import iter_events
+from feed_simulator.events.loader import iter_events
 from datetime import datetime
-from common.models import ServerMessageType, WSServerMessage
+from feed_simulator.common.models import ServerMessageType, WSServerMessage
 import asyncio
-from common.BaseSimulator import BaseSimulator
+from feed_simulator.common.BaseSimulator import BaseSimulator
 
 
 class EventSimulator(BaseSimulator):
