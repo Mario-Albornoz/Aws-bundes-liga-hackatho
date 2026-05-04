@@ -1,4 +1,3 @@
-from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from feed_simulator.events.EventBroadcastRegistry import EventBroadcastRegistry
 from feed_simulator.events.router import router as events_router
@@ -22,3 +21,5 @@ app = FastAPI(lifespan=lifespan)
 app.include_router(events_router)
 
 app.include_router(positional_router)
+
+app.include_router(chat_room_router)
