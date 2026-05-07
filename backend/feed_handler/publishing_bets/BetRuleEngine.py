@@ -1,6 +1,8 @@
 from typing import Callable, Optional
-from feed_simulator.events.models import MatchEvent, Substitution
+
+from feed_handler.consumers.handlers.dto.BetTypes import BetTypes
 from feed_handler.publishing_bets.BetOpportunity import BetOpportunity
+from feed_simulator.events.models import MatchEvent, Substitution
 
 RuleFunc = Callable[[MatchEvent], BetOpportunity]
 
@@ -20,7 +22,7 @@ class BetRuleEngine:
     def _rule_substitution(self, event: MatchEvent) -> Optional[BetOpportunity]:
         sub = Substitution.model_validate(event.subelement)
         return BetOpportunity(
-            bet_type="substitution",
+            bet_type=BetTypes.SUBSTITUTION.value,
             trigger_event_id=event.event_id,
             window_seconds=120,
             context={

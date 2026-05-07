@@ -1,5 +1,7 @@
+import uuid
+from datetime import datetime, timedelta, timezone
+
 from pydantic import BaseModel
-from datetime import datetime, timezone, timedelta
 
 
 class BetOpportunity(BaseModel):
@@ -8,6 +10,7 @@ class BetOpportunity(BaseModel):
     window_seconds: int
     context: dict
     expires_at: datetime = None
+    bet_id: uuid.UUID = uuid.uuid4()
 
     def model_post_init(self, __context) -> None:
         if self.expires_at is None:

@@ -1,5 +1,7 @@
-from api.components.communication.ConnectionManager import ConnectionManager
-from api.components.communication.ConnectionManager import connection_manager
+from api.components.communication.ConnectionManager import (
+    ConnectionManager,
+    connection_manager,
+)
 from feed_handler.publishing_bets.BetOpportunity import BetOpportunity
 
 
