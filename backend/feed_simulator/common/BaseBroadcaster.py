@@ -90,6 +90,8 @@ class BaseBroadcaster:
                 await self.disconnect(client_id)
 
     async def _catchup(self, websocket: WebSocket, resumed_seq: int):
+        if websocket is None:
+            return
         missed = [msg for msg in self._buffer if msg.seq > resumed_seq]
         for message in missed:
             try:

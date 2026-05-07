@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from ConnectionManager import connection_manager
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from api.components.communication.ConnectionManager import connection_manager
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-router = APIRouter(prefix="chat-room", tags=["chat"])
+router = APIRouter(prefix="/chat-room", tags=["chat"])
 
 
 @router.websocket("/stream")

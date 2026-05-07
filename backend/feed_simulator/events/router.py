@@ -9,18 +9,23 @@ from feed_simulator.common.models import (
     WSServerMessage,
 )
 from feed_simulator.events.EventBroadcastRegistry import EventBroadcastRegistry
+from dotenv import load_dotenv
+import os
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+load_dotenv()
 
 
 @router.websocket("/stream")
 async def event_stream(
     websocket: WebSocket,
-    match_id: str = Query(..., description="Match identifier"),
     speed: float = Query(1.0, gt=0, le=600, description="Playback speed multiplier"),
     seq: int = Query(0, ge=0, description="Last received sequence number for catch-up"),
 ):
     await websocket.accept()
+
+    match_id = os.getenv("MATCH_ID")
 
     registry: EventBroadcastRegistry = websocket.app.state.match_broadcast_registry
     broadcaster = await registry.get_or_create(match_id=match_id, speed=speed)

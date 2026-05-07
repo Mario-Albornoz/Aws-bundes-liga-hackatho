@@ -1,10 +1,12 @@
 from contextlib import asynccontextmanager
+from fastapi import FastAPI
 from feed_simulator.events.EventBroadcastRegistry import EventBroadcastRegistry
 from feed_simulator.events.router import router as events_router
 from feed_simulator.positional.PositionalBroadcastRegistry import (
     PositionalBroadcastRegistry,
 )
 from feed_simulator.positional.router import router as positional_router
+from api.components.communication.router import router as chat_room_router
 
 
 @asynccontextmanager

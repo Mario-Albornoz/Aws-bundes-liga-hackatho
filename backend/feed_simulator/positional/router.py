@@ -8,19 +8,26 @@ from feed_simulator.common.models import (
     WSClientMessage,
     WSServerMessage,
 )
-from feed_simulator.positional.PositionalBroadcastRegistry import PositionalBroadcastRegistry
+from feed_simulator.positional.PositionalBroadcastRegistry import (
+    PositionalBroadcastRegistry,
+)
+from dotenv import load_dotenv
+import os
 
 router = APIRouter(prefix="/positional", tags=["positional"])
+
+load_dotenv()
 
 
 @router.websocket("/stream")
 async def positional_stream(
     websocket: WebSocket,
-    match_id: str = Query(..., description="Match identifier"),
     speed: float = Query(1.0, gt=0, le=600, description="Playback speed multiplier"),
     seq: int = Query(0, ge=0, description="Last received sequence number for catch-up"),
 ):
     await websocket.accept()
+
+    match_id = os.getenv("MATCH_ID")
 
     registry: PositionalBroadcastRegistry = (
         websocket.app.state.positional_broadcast_registry

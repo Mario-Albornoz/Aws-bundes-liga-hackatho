@@ -21,7 +21,18 @@ class ConnectionManager:
                 connection.send_json(message)
                 for connection in self.active_connections[room_id]
             ],
-            return_exceptions=True
+            return_exceptions=True,
+        )
+
+    async def broadcast_all(self, message: dict):
+        all_connections = [
+            connection
+            for connections in self.active_connections.values()
+            for connection in connections
+        ]
+        await asyncio.gather(
+            *[connection.send_json(message) for connection in all_connections],
+            return_exceptions=True,
         )
 
 
