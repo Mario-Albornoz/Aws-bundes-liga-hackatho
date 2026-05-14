@@ -1,26 +1,33 @@
-import { useEffect, useRef, useState } from 'react';
-import { EventsSocket } from './EventsSocket';
+import { useEffect, useRef, useState } from "react";
+import { EventsSocket } from "./EventsSocket";
 
-export type StreamStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'closed';
+export type StreamStatus =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "error"
+  | "closed";
 
 export function useEventsStream() {
-  const [status, setStatus] = useState<StreamStatus>('idle');
+  const [status, setStatus] = useState<StreamStatus>("idle");
   const [lastMessage, setLastMessage] = useState<string | null>(null);
   const socketRef = useRef<EventsSocket | null>(null);
 
   useEffect(() => {
-    return () => { socketRef.current?.close(); };
+    return () => {
+      socketRef.current?.close();
+    };
   }, []);
 
-  function connect(matchId: string, speed = 1, seq = 0) {
+  function connect(speed = 1, seq = 0) {
     socketRef.current?.close();
-    setStatus('connecting');
+    setStatus("connecting");
     setLastMessage(null);
-    socketRef.current = new EventsSocket(matchId, speed, seq, {
-      onOpen: () => setStatus('connected'),
+    socketRef.current = new EventsSocket(speed, seq, {
+      onOpen: () => setStatus("connected"),
       onMessage: (data) => setLastMessage(data),
-      onClose: () => setStatus('closed'),
-      onError: () => setStatus('error'),
+      onClose: () => setStatus("closed"),
+      onError: () => setStatus("error"),
     });
   }
 

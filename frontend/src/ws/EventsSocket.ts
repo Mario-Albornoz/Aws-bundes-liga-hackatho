@@ -10,13 +10,16 @@ type SocketCallbacks = {
 export class EventsSocket {
   private ws: WebSocket;
 
-  constructor(matchId: string, speed = 1, seq = 0, callbacks: SocketCallbacks = {}) {
-    const url = `${BASE_URL}?match_id=${encodeURIComponent(matchId)}&speed=${speed}&seq=${seq}`;
+  constructor(speed = 1, seq = 0, callbacks: SocketCallbacks = {}) {
+    const url = `${BASE_URL}?speed=${speed}&seq=${seq}`;
     this.ws = new WebSocket(url);
     this.ws.onopen = () => callbacks.onOpen?.();
     this.ws.onmessage = (e) => callbacks.onMessage?.(e.data);
     this.ws.onclose = () => callbacks.onClose?.();
-    this.ws.onerror = (e) => { console.error('[EventsSocket] error', e); callbacks.onError?.(e); };
+    this.ws.onerror = (e) => {
+      console.error("[EventsSocket] error", e);
+      callbacks.onError?.(e);
+    };
   }
 
   close() {
