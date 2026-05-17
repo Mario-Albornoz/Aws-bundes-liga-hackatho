@@ -1,8 +1,11 @@
+from feed_handler.consumers.handlers.BetProcessingHandler import BetProcessingHandler
+from feed_handler.consumers.handlers.BetPublishingHandler import BetPublishingHandler
+from feed_handler.consumers.handlers.dto.BetTypes import BetTypes
+from feed_handler.publishing_bets.BetNotifier import bet_notifier
+from feed_handler.publishing_bets.BetRuleEngine import bet_rule_engine
+from feed_handler.publishing_bets.FeedConsumer import FeedConsumer
 from feed_simulator.common.BroadcastRegistry import BroadcastRegistry
 from feed_simulator.events.EventBroadcaster import EventBroadcaster
-from feed_handler.publishing_bets.FeedConsumer import FeedConsumer
-from feed_handler.publishing_bets.BetRuleEngine import bet_rule_engine
-from feed_handler.publishing_bets.BetNotifier import bet_notifier
 
 
 class EventBroadcastRegistry(BroadcastRegistry):
@@ -22,6 +25,11 @@ class EventBroadcastRegistry(BroadcastRegistry):
             consumer = FeedConsumer(
                 match_id=match_id,
                 broadcaster=broadcaster,
+                # assing handlers here, all new processing or publishing handlers should be attached to this handlers list
+                handlers=[
+                    BetProcessingHandler(BetTypes.SUBSTITUTION.value),
+                    BetPublishingHandler(),
+                ],
             )
             await consumer.start()
             self._consumers[match_id] = consumer

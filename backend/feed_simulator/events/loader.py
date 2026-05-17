@@ -11,7 +11,7 @@ import os
 
 load_dotenv()
 
-CHUNK_SIZE = int(os.getenv("CHUNK_SIZE"))
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "500"))
 
 
 def _parse_element(element: etree._Element, regisrty: dict) -> tuple[str, object]:

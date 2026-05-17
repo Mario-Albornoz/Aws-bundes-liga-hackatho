@@ -8,8 +8,8 @@ load_dotenv()
 
 
 class EventBroadcaster(BaseBroadcaster):
-    BUFFER_SIZE = int(os.getenv("EVENT_BUFFER"))
-    QUEUE_SIZE = int(os.getenv("EVENT_QUEUE_SIZE"))
+    BUFFER_SIZE = int(os.getenv("EVENT_BUFFER", "256"))
+    QUEUE_SIZE = int(os.getenv("EVENT_QUEUE_SIZE", "32"))
 
     def __init__(self, match_id: str, speed: float = 1.0) -> None:
         super().__init__(match_id, speed, simulator_class=EventSimulator)
