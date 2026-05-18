@@ -8,7 +8,7 @@ TEST_XML = "./data/test.xml"
 
 def test_total_event_count():
     all_events = [e for chunk in iter_events(TEST_XML) for e in chunk]
-    assert len(all_events) == 10
+    assert len(all_events) == 11
 
 
 def test_chunk_size_respected():
@@ -48,7 +48,7 @@ def test_single_chunk_when_all_fit():
     try:
         chunks = list(iter_events(TEST_XML))
         assert len(chunks) == 1
-        assert len(chunks[0]) == 10
+        assert len(chunks[0]) == 11
     finally:
         loader_mod.CHUNK_SIZE = original
 

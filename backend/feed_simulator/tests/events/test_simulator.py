@@ -9,7 +9,7 @@ TEST_XML = "./data/test.xml"
 async def test_stream_yields_all_events():
     sim = EventSimulator(speed=10000, path=TEST_XML)
     messages = [msg async for msg in sim.stream()]
-    assert len(messages) == 10
+    assert len(messages) == 11
 
 
 @pytest.mark.asyncio
