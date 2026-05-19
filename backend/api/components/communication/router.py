@@ -23,19 +23,14 @@ async def create_chat_room(name: str, user_id: str):
 
 @router.post("/join")
 async def join_chat_room(body: JoinRoomRequest):
-    room_info = chat_cache.get_chat_room_info(body.room_id)
-    if not room_info:
-        raise HTTPException(status_code=404, detail={"error": "Chat room not found"})
+    room_id = chat_cache.get_room_id_by_connection_string(body.connection_string)
+    if not room_id:
+        raise HTTPException(status_code=404, detail={"error": "Invalid join code"})
 
-    if room_info.connection_string != body.connection_string:
-        raise HTTPException(
-            status_code=400, detail={"error": "Invalid connection string"}
-        )
-
-    chat_cache.add_user_to_chat_room(room_id=body.room_id, user_id=body.user_id)
-    ws_token = chat_cache.create_ws_token(room_id=body.room_id, user_id=body.user_id)
+    chat_cache.add_user_to_chat_room(room_id=room_id, user_id=body.user_id)
+    ws_token = chat_cache.create_ws_token(room_id=room_id, user_id=body.user_id)
     return {
-        "room_id": body.room_id,
+        "room_id": room_id,
         "user_id": body.user_id,
         "ws_token": ws_token,
     }
@@ -61,6 +56,9 @@ async def chat_room_stream(websocket: WebSocket, room_id: str, ws_token: str):
         },
     )
 
+    for message in chat_cache.get_chat_messages(room_id):
+        await websocket.send_json(message.model_dump())
+
     try:
         while True:
             data = await websocket.receive_json()
@@ -68,9 +66,9 @@ async def chat_room_stream(websocket: WebSocket, room_id: str, ws_token: str):
             message = ChatMessage(
                 id=str(uuid4()),
                 room_id=room_id,
-                sender_id=user_id,
+                sender_id=data.get("sender_id"),
                 content=data.get("content"),
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=data.get("timestamp"),
             )
 
             await connection_manager.broadcast(room_id, message.model_dump())

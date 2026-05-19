@@ -9,7 +9,6 @@ class ChatRoomInfo(BaseModel):
 
 
 class JoinRoomRequest(BaseModel):
-    room_id: str
     user_id: str
     connection_string: str
 

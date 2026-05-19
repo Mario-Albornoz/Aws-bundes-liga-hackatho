@@ -21,7 +21,12 @@ class ChatCache:
             created_by=user_id,
         )
         redis_client.set(cacheKey, new_room.model_dump_json())
+        redis_client.set(f"chat:room:by_connection:{connection_string}", room_id)
         return new_room
+
+    def get_room_id_by_connection_string(self, connection_string: str) -> str | None:
+        result = redis_client.get(f"chat:room:by_connection:{connection_string}")
+        return result.decode() if result else None
 
     def get_chat_room_info(self, room_id: str) -> ChatRoomInfo | None:
         cacheKey = f"chat:room:{room_id}"
