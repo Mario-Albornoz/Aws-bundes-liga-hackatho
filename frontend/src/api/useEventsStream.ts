@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { EventsSocket } from "./EventsSocket";
+import { getEventsStreamUrl } from "./config";
 
 export type StreamStatus =
   | "idle"
@@ -23,7 +24,8 @@ export function useEventsStream() {
     socketRef.current?.close();
     setStatus("connecting");
     setLastMessage(null);
-    socketRef.current = new EventsSocket(speed, seq, {
+    const url = getEventsStreamUrl(speed, seq);
+    socketRef.current = new EventsSocket(url, {
       onOpen: () => setStatus("connected"),
       onMessage: (data) => setLastMessage(data),
       onClose: () => setStatus("closed"),

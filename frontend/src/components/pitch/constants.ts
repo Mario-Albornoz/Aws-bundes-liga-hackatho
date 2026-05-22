@@ -1,12 +1,12 @@
 // Colors
-export const COLOR_BACKGROUND = 0x1a1a2e;
-export const COLOR_AMBIENT_LIGHT = 0xffffff;
-export const COLOR_DIR_LIGHT = 0xffffff;
-export const COLOR_PITCH_SURFACE = 0x2d8a4e;
-export const COLOR_PITCH_MARKINGS = 0xffffff;
-export const COLOR_BALL = 0xffffff;
-export const COLOR_PLAYER_HOME = 0xe74c3c;
-export const COLOR_PLAYER_AWAY = 0x3498db;
+export const COLOR_BACKGROUND = "#1a1a2e";
+export const COLOR_AMBIENT_LIGHT = "#ffffff";
+export const COLOR_DIR_LIGHT = "#ffffff";
+export const COLOR_PITCH_SURFACE = "#2d8a4e";
+export const COLOR_PITCH_MARKINGS = "#ffffff";
+export const COLOR_BALL = "#ffffff";
+export const COLOR_PLAYER_HOME = "#e74c3c";
+export const COLOR_PLAYER_AWAY = "#3498db";
 
 // Pitch dimensions (metres)
 export const PITCH_LENGTH = 105;

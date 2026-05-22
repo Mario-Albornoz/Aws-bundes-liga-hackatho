@@ -24,7 +24,9 @@ export function PitchCanvas({ lastMessage }: Props) {
     if (!lastMessage) return;
     try {
       const msg = JSON.parse(lastMessage) as WSServerMessage<PositionalFrame>;
-      latestFrameRef.current = msg.payload;
+      if (msg.type === 'positional') {
+        latestFrameRef.current = msg.payload;
+      }
     } catch {}
   }, [lastMessage]);
 

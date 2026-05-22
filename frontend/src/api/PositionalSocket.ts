@@ -1,5 +1,3 @@
-const BASE_URL = process.env.EXPO_PUBLIC_POSITIONAL_WS_URL!;
-
 type SocketCallbacks = {
   onOpen?: () => void;
   onMessage?: (data: string) => void;
@@ -10,8 +8,7 @@ type SocketCallbacks = {
 export class PositionalSocket {
   private ws: WebSocket;
 
-  constructor(speed = 1, seq = 0, callbacks: SocketCallbacks = {}) {
-    const url = `${BASE_URL}?speed=${speed}&seq=${seq}`;
+  constructor(url: string, callbacks: SocketCallbacks = {}) {
     this.ws = new WebSocket(url);
     this.ws.onopen = () => callbacks.onOpen?.();
     this.ws.onmessage = (e) => callbacks.onMessage?.(e.data);

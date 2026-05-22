@@ -96,7 +96,6 @@ function addHalfwayLine(v: number[]) {
 
 function addCenterCircle(v: number[]) {
   arc(v, 0, 0, CENTER_CIRCLE_RADIUS, 0, Math.PI * 2, 64);
-  arc(v, 0, 0, 0.3, 0, Math.PI * 2, 8);
 }
 
 function addPenaltyArea(v: number[], s: number) {
@@ -117,7 +116,6 @@ function addGoalArea(v: number[], s: number) {
 
 function addPenaltySpotAndArc(v: number[], s: number, penArcHalf: number) {
   const spotX = s * PENALTY_SPOT_X;
-  arc(v, spotX, 0, 0.3, 0, Math.PI * 2, 8);
   const base = s < 0 ? 0 : Math.PI;
   arc(
     v,

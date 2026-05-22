@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PositionalSocket } from "./PositionalSocket";
 import { StreamStatus } from "./useEventsStream";
+import { getPositionalStreamUrl } from "./config";
 
 export function usePositionalStream() {
   const [status, setStatus] = useState<StreamStatus>("idle");
@@ -17,7 +18,8 @@ export function usePositionalStream() {
     socketRef.current?.close();
     setStatus("connecting");
     setLastMessage(null);
-    socketRef.current = new PositionalSocket(speed, seq, {
+    const url = getPositionalStreamUrl(speed, seq);
+    socketRef.current = new PositionalSocket(url, {
       onOpen: () => setStatus("connected"),
       onMessage: (data) => setLastMessage(data),
       onClose: () => setStatus("closed"),
