@@ -25,6 +25,7 @@ class BetRuleEngine:
             bet_type=BetTypes.SUBSTITUTION.value,
             trigger_event_id=event.event_id,
             window_seconds=120,
+            match_id=event.match_id,
             context={
                 "player_on": sub.player_in,
                 "team": sub.team,

@@ -8,6 +8,7 @@ class BetOpportunity(BaseModel):
     bet_type: str
     trigger_event_id: str
     window_seconds: int
+    match_id: str
     context: dict
     expires_at: datetime = None
     bet_id: uuid.UUID = uuid.uuid4()

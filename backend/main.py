@@ -9,7 +9,9 @@ from feed_simulator.positional.PositionalBroadcastRegistry import (
 )
 from feed_simulator.positional.router import router as positional_router
 from api.components.bets.router import router as bets_router
+from api.components.bets.debug_router import debug_router as bets_debug_router
 from api.components.communication.router import router as chat_room_router
+from api.components.auth.router import router as auth_router
 
 
 @asynccontextmanager
@@ -37,4 +39,7 @@ app.include_router(positional_router)
 
 app.include_router(chat_room_router)
 
+app.include_router(auth_router)
+
 app.include_router(bets_router)
+app.include_router(bets_debug_router)

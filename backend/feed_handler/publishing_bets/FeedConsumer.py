@@ -2,8 +2,6 @@ import asyncio
 from typing import Optional
 
 from feed_handler.consumers.handlers.AbstractHandler import AbstractHandler
-from feed_handler.publishing_bets.BetNotifier import bet_notifier
-from feed_handler.publishing_bets.BetRuleEngine import bet_rule_engine
 from feed_simulator.common.BaseBroadcaster import BaseBroadcaster
 from feed_simulator.common.models import ServerMessageType, WSServerMessage
 from feed_simulator.events.models import MatchEvent

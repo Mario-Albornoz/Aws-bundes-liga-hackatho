@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   PanResponder,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useApi } from "@/src/api/ApiContext";
 import { useChatStream } from "@/src/api/useChatStream";
+import type { BetOpportunityMessage } from "@/src/api/types/bets";
 import { CreateRoomView } from "./CreateRoomView";
 import { JoinRoomView } from "./JoinRoomView";
 import { ChatView } from "./ChatView";
@@ -34,13 +35,24 @@ import {
 
 type Screen = "idle" | "creating" | "joining" | "in_room";
 
-export function ChatOverlay() {
+interface ChatOverlayProps {
+  onBetOpportunity?: (msg: BetOpportunityMessage) => void;
+}
+
+export function ChatOverlay({ onBetOpportunity }: ChatOverlayProps) {
   const { userId } = useApi();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [isOpen, setIsOpen] = useState(false);
   const [screen, setScreen] = useState<Screen>("idle");
   const chat = useChatStream();
   const userIdStr = String(userId);
+
+  useEffect(() => {
+    if (chat.latestBetOpportunity) {
+      onBetOpportunity?.(chat.latestBetOpportunity);
+      chat.clearBetOpportunity();
+    }
+  }, [chat.latestBetOpportunity]);
 
   const panelWidth = windowWidth / 2;
   const maxHeightRef = useRef(windowHeight / 2);

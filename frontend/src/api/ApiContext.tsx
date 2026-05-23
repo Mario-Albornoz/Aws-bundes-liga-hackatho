@@ -10,7 +10,14 @@ import React, {
 
 import { BetSettlementSocket } from '@/src/api/BetSettlementSocket';
 import { getApiBaseUrl, getBetSettlementWebSocketUrl, getCreateBetUrl } from '@/src/api/config';
-import type { Bet, BetCreateRequest, BetSettledMessage } from '@/src/api/types/bets';
+import type {
+  Bet,
+  BetCreateRequest,
+  BetSettledMessage,
+  BetSnapshotMessage,
+  BetUpdatedMessage,
+} from '@/src/api/types/bets';
+import { useAuth } from '@/src/api/AuthContext';
 
 export type SettlementSocketStatus = 'idle' | 'connecting' | 'connected' | 'error' | 'closed';
 
@@ -24,6 +31,7 @@ export type ApiContextValue = {
   settlementSocketStatus: SettlementSocketStatus;
   lastSettlementMessage: BetSettledMessage | null;
   clearLastSettlementMessage: () => void;
+  myBets: Bet[];
   connectBetSettlementSocket: () => void;
   disconnectBetSettlementSocket: () => void;
 };
@@ -31,14 +39,22 @@ export type ApiContextValue = {
 const ApiContext = createContext<ApiContextValue | null>(null);
 
 export function ApiProvider({ children }: { children: React.ReactNode }) {
-  const [userId, setUserId] = useState(1);
+  const { user, accessToken } = useAuth();
+  const [userId, setUserId] = useState(user?.user_id ?? 1);
+
+  useEffect(() => {
+    if (user?.user_id) setUserId(user.user_id);
+  }, [user?.user_id]);
   const [settlementSocketStatus, setSettlementSocketStatus] =
     useState<SettlementSocketStatus>('idle');
   const [lastSettlementMessage, setLastSettlementMessage] = useState<BetSettledMessage | null>(
     null
   );
+  const [myBets, setMyBets] = useState<Bet[]>([]);
   const [createBetError, setCreateBetError] = useState<string | null>(null);
   const socketRef = useRef<BetSettlementSocket | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intentionalCloseRef = useRef(false);
 
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
 
@@ -46,12 +62,22 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
   const clearLastSettlementMessage = useCallback(() => setLastSettlementMessage(null), []);
 
   const disconnectBetSettlementSocket = useCallback(() => {
+    intentionalCloseRef.current = true;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     socketRef.current?.close();
     socketRef.current = null;
     setSettlementSocketStatus('idle');
   }, []);
 
   const connectBetSettlementSocket = useCallback(() => {
+    intentionalCloseRef.current = false;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     socketRef.current?.close();
     socketRef.current = null;
     setSettlementSocketStatus('connecting');
@@ -60,21 +86,50 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       onOpen: () => setSettlementSocketStatus('connected'),
       onMessage: (raw) => {
         try {
-          const data = JSON.parse(raw) as BetSettledMessage;
-          if (data && data.type === 'bet_settled') {
-            setLastSettlementMessage(data);
+          const data = JSON.parse(raw) as
+            | BetSettledMessage
+            | BetSnapshotMessage
+            | BetUpdatedMessage;
+          if (!data?.type) return;
+
+          if (data.type === 'bet_snapshot') {
+            setMyBets((data as BetSnapshotMessage).bets);
+          } else if (data.type === 'bet_updated') {
+            const { bet_id, status } = data as BetUpdatedMessage;
+            setMyBets((prev) =>
+              prev.map((b) =>
+                b.bet_info.bet_id === bet_id ? { ...b, bet_status: status } : b
+              )
+            );
+          } else if (data.type === 'bet_settled') {
+            const msg = data as BetSettledMessage;
+            setLastSettlementMessage(msg);
+            setMyBets((prev) =>
+              prev.map((b) =>
+                b.bet_info.bet_id === msg.bet_id ? { ...b, bet_status: msg.status } : b
+              )
+            );
           }
         } catch {
           /* ignore non-JSON */
         }
       },
-      onClose: () => setSettlementSocketStatus('closed'),
+      onClose: () => {
+        setSettlementSocketStatus('closed');
+        if (!intentionalCloseRef.current) {
+          reconnectTimerRef.current = setTimeout(() => {
+            connectBetSettlementSocket();
+          }, 3000);
+        }
+      },
       onError: () => setSettlementSocketStatus('error'),
     });
   }, [userId]);
 
   useEffect(() => {
     return () => {
+      intentionalCloseRef.current = true;
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       socketRef.current?.close();
       socketRef.current = null;
     };
@@ -82,9 +137,14 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
 
   const createBet = useCallback(async (body: BetCreateRequest): Promise<Bet> => {
     setCreateBetError(null);
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
     const res = await fetch(getCreateBetUrl(), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      headers,
       body: JSON.stringify(body),
     });
     const text = await res.text();
@@ -106,6 +166,7 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       settlementSocketStatus,
       lastSettlementMessage,
       clearLastSettlementMessage,
+      myBets,
       connectBetSettlementSocket,
       disconnectBetSettlementSocket,
     }),
@@ -118,6 +179,7 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       settlementSocketStatus,
       lastSettlementMessage,
       clearLastSettlementMessage,
+      myBets,
       connectBetSettlementSocket,
       disconnectBetSettlementSocket,
     ]

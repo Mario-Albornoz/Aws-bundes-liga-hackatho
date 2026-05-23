@@ -8,6 +8,7 @@ from feed_simulator.events.models import (
     MatchEvent,
     ShotAtGoal,
     SuccessfulShot,
+    Substitution,
 )
 
 
@@ -27,7 +28,27 @@ class BetProcessingHandler(AbstractHandler):
         sub = event.subelement
         settled: list[Bet] = []
 
-        if isinstance(sub, ShotAtGoal):
+        if isinstance(sub, Substitution):
+            for bet in bets:
+                if (
+                    bet.bet_status == BetStatus.PENDING
+                    and sub.player_in == bet.bet_info.bet_specs.player_id
+                ):
+                    bet.triggered = True
+                    bet.bet_status = BetStatus.ACTIVE
+                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
+                    print(f"Bet {bet.bet_info.bet_id} ACTIVE")
+                    for participant in bet.participants:
+                        await bet_settlement_notifier.notify_user(
+                            participant.user_id,
+                            {
+                                "type": "bet_updated",
+                                "bet_id": bet.bet_info.bet_id,
+                                "status": bet.bet_status.value,
+                            },
+                        )
+
+        elif isinstance(sub, ShotAtGoal):
             if not isinstance(sub.subelement, SuccessfulShot):
                 return
 
@@ -70,7 +91,9 @@ class BetProcessingHandler(AbstractHandler):
             else:
                 balance -= participant.bet_amount
 
-            await database_manager.update_user_balance_by_id(balance, participant.user_id)
+            await database_manager.update_user_balance_by_id(
+                balance, participant.user_id
+            )
             await bet_settlement_notifier.notify_user(
                 participant.user_id,
                 {

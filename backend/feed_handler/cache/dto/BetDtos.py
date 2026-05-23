@@ -31,7 +31,7 @@ class BetInfo(BaseModel):
     bet_id: str
     bet_type: BetTypes
     duration: int = Field(..., gt=0)
-    match_id: int
+    match_id: str
     bet_specs: BetSpecifications
 
 

@@ -1,9 +1,11 @@
 import asyncio
 from collections import deque
 from typing import Optional
+
 from fastapi import WebSocket
-from feed_simulator.common.models import WSServerMessage
+
 from feed_simulator.common.BaseSimulator import BaseSimulator
+from feed_simulator.common.models import WSServerMessage
 
 
 class BaseBroadcaster:

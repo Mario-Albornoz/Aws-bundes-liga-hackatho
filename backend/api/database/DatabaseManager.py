@@ -1,8 +1,19 @@
 import asyncio
 import sqlite3
+from dataclasses import dataclass
 from sqlite3 import Connection, Cursor
 
 from api.database.queries import users_table_schema_query
+
+
+@dataclass
+class UserRow:
+    id: int
+    username: str
+    name: str
+    last_name: str
+    balance: float
+    password_hash: str
 
 
 class DatabaseManager:
@@ -69,6 +80,67 @@ class DatabaseManager:
                 (new_balance, user_id),
             )
             self.conn.commit()
+
+    async def create_user(
+        self, username: str, name: str, last_name: str, password_hash: str
+    ) -> UserRow:
+        async with self._lock:
+            self.connect()
+            assert self.conn is not None
+            cur = self.conn.execute(
+                "INSERT INTO user (username, name, last_name, balance, password_hash) VALUES (?, ?, ?, 0.0, ?)",
+                (username, name, last_name, password_hash),
+            )
+            self.conn.commit()
+            user_id = cur.lastrowid
+        return UserRow(
+            id=user_id,
+            username=username,
+            name=name,
+            last_name=last_name,
+            balance=0.0,
+            password_hash=password_hash,
+        )
+
+    async def get_user_by_username(self, username: str) -> UserRow | None:
+        async with self._lock:
+            self.connect()
+            assert self.conn is not None
+            cur = self.conn.execute(
+                "SELECT id, username, name, last_name, balance, password_hash FROM user WHERE username = ?",
+                (username,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return UserRow(
+            id=row[0],
+            username=row[1],
+            name=row[2],
+            last_name=row[3],
+            balance=row[4] or 0.0,
+            password_hash=row[5],
+        )
+
+    async def get_user_by_id(self, user_id: int) -> UserRow | None:
+        async with self._lock:
+            self.connect()
+            assert self.conn is not None
+            cur = self.conn.execute(
+                "SELECT id, username, name, last_name, balance, password_hash FROM user WHERE id = ?",
+                (user_id,),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return UserRow(
+            id=row[0],
+            username=row[1],
+            name=row[2],
+            last_name=row[3],
+            balance=row[4] or 0.0,
+            password_hash=row[5],
+        )
 
 
 database_manager = DatabaseManager()

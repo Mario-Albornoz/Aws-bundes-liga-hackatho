@@ -1,5 +1,25 @@
 export type BetStatus = 'PENDING' | 'ACTIVE' | 'SUCCESS' | 'FAILED';
 
+export interface BetOpportunityContext {
+  player_on: string;
+  team: string;
+}
+
+export interface BetOpportunity {
+  bet_type: string;
+  trigger_event_id: string;
+  window_seconds: number;
+  match_id: string;
+  context: BetOpportunityContext;
+  expires_at: string;
+  bet_id: string;
+}
+
+export interface BetOpportunityMessage {
+  type: 'bet_opportunity';
+  opportunity: BetOpportunity;
+}
+
 /** Matches backend `BetTypes` string values. */
 export type BetType = 'substitution';
 
@@ -19,7 +39,7 @@ export interface BetInfo {
   bet_id: string;
   bet_type: BetType;
   duration: number;
-  match_id: number;
+  match_id: string;
   bet_specs: BetSpecifications;
 }
 
@@ -44,7 +64,18 @@ export interface BetSettledMessage {
   type: 'bet_settled';
   bet_id: string;
   status: BetStatus;
-  match_id: number;
+  match_id: string;
   user_id: number;
   new_balance: number;
+}
+
+export interface BetSnapshotMessage {
+  type: 'bet_snapshot';
+  bets: Bet[];
+}
+
+export interface BetUpdatedMessage {
+  type: 'bet_updated';
+  bet_id: string;
+  status: BetStatus;
 }
