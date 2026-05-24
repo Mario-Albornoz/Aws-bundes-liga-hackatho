@@ -13,7 +13,7 @@ from feed_simulator.events.models import (
 )
 
 
-class BetProcessingHandler(AbstractHandler):
+class BetProcessingHandler(AbstractHandler[MatchEvent]):
     def __init__(self, bet_type: str):
         self.bet_type = bet_type
 

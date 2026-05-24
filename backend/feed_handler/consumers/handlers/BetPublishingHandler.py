@@ -4,7 +4,7 @@ from feed_handler.publishing_bets.BetNotifier import bet_notifier
 from feed_simulator.events.models import MatchEvent
 
 
-class BetPublishingHandler(AbstractHandler):
+class BetPublishingHandler(AbstractHandler[MatchEvent]):
     async def complete(self) -> None:
         return None
 

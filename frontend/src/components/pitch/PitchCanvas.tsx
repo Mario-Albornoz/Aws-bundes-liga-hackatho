@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { AnimatedPressable } from "../ui/AnimatedPressable";
 import { GLView } from "expo-gl";
 import { GestureDetector } from "react-native-gesture-handler";
 import { Mesh, Scene } from "three";
@@ -24,7 +25,7 @@ export function PitchCanvas({ lastMessage }: Props) {
     if (!lastMessage) return;
     try {
       const msg = JSON.parse(lastMessage) as WSServerMessage<PositionalFrame>;
-      if (msg.type === 'positional') {
+      if (msg.type === "positional") {
         latestFrameRef.current = msg.payload;
       }
     } catch {}
@@ -46,10 +47,8 @@ export function PitchCanvas({ lastMessage }: Props) {
     playerMeshMap,
     latestFrameRef,
   );
-  const { onContextCreate, dispose, cameraGesture, resetCamera } = useThreeScene(
-    onSceneReady,
-    onTick,
-  );
+  const { onContextCreate, dispose, cameraGesture, resetCamera } =
+    useThreeScene(onSceneReady, onTick);
 
   useEffect(() => {
     return dispose;
@@ -60,9 +59,9 @@ export function PitchCanvas({ lastMessage }: Props) {
       <GestureDetector gesture={cameraGesture}>
         <GLView style={styles.gl} onContextCreate={onContextCreate} />
       </GestureDetector>
-      <Pressable style={styles.resetButton} onPress={resetCamera}>
+      <AnimatedPressable style={styles.resetButton} onPress={resetCamera}>
         <Text style={styles.resetButtonText}>Reset</Text>
-      </Pressable>
+      </AnimatedPressable>
     </View>
   );
 }
@@ -72,7 +71,7 @@ const styles = StyleSheet.create({
   gl: { flex: 1 },
   resetButton: {
     position: "absolute",
-    bottom: 24,
+    bottom: 120,
     right: 16,
     backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: 16,
