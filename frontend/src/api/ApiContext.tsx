@@ -13,6 +13,8 @@ import { getApiBaseUrl, getBetSettlementWebSocketUrl, getCreateBetUrl } from '@/
 import type {
   Bet,
   BetCreateRequest,
+  BetOpportunity,
+  BetOpportunityMessage,
   BetSettledMessage,
   BetSnapshotMessage,
   BetUpdatedMessage,
@@ -32,6 +34,9 @@ export type ApiContextValue = {
   lastSettlementMessage: BetSettledMessage | null;
   clearLastSettlementMessage: () => void;
   myBets: Bet[];
+  latestBetOpportunity: BetOpportunity | null;
+  clearLatestBetOpportunity: () => void;
+  setLatestBetOpportunity: (opp: BetOpportunity) => void;
   connectBetSettlementSocket: () => void;
   disconnectBetSettlementSocket: () => void;
 };
@@ -51,6 +56,7 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
     null
   );
   const [myBets, setMyBets] = useState<Bet[]>([]);
+  const [latestBetOpportunity, setLatestBetOpportunity] = useState<BetOpportunity | null>(null);
   const [createBetError, setCreateBetError] = useState<string | null>(null);
   const socketRef = useRef<BetSettlementSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,6 +66,11 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
 
   const clearCreateBetError = useCallback(() => setCreateBetError(null), []);
   const clearLastSettlementMessage = useCallback(() => setLastSettlementMessage(null), []);
+  const clearLatestBetOpportunity = useCallback(() => setLatestBetOpportunity(null), []);
+  const exposedSetLatestBetOpportunity = useCallback(
+    (opp: BetOpportunity) => setLatestBetOpportunity(opp),
+    []
+  );
 
   const disconnectBetSettlementSocket = useCallback(() => {
     intentionalCloseRef.current = true;
@@ -89,10 +100,13 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
           const data = JSON.parse(raw) as
             | BetSettledMessage
             | BetSnapshotMessage
-            | BetUpdatedMessage;
+            | BetUpdatedMessage
+            | BetOpportunityMessage;
           if (!data?.type) return;
 
-          if (data.type === 'bet_snapshot') {
+          if (data.type === 'bet_opportunity') {
+            setLatestBetOpportunity((data as BetOpportunityMessage).opportunity);
+          } else if (data.type === 'bet_snapshot') {
             setMyBets((data as BetSnapshotMessage).bets);
           } else if (data.type === 'bet_updated') {
             const { bet_id, status } = data as BetUpdatedMessage;
@@ -167,6 +181,9 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       lastSettlementMessage,
       clearLastSettlementMessage,
       myBets,
+      latestBetOpportunity,
+      clearLatestBetOpportunity,
+      setLatestBetOpportunity: exposedSetLatestBetOpportunity,
       connectBetSettlementSocket,
       disconnectBetSettlementSocket,
     }),
@@ -180,6 +197,9 @@ export function ApiProvider({ children }: { children: React.ReactNode }) {
       lastSettlementMessage,
       clearLastSettlementMessage,
       myBets,
+      latestBetOpportunity,
+      clearLatestBetOpportunity,
+      exposedSetLatestBetOpportunity,
       connectBetSettlementSocket,
       disconnectBetSettlementSocket,
     ]

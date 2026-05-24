@@ -4,11 +4,12 @@ from feed_handler.cache.BetCache import bet_cache
 from feed_handler.cache.dto.BetDtos import Bet, BetStatus
 from feed_handler.consumers.handlers.AbstractHandler import AbstractHandler
 from feed_simulator.events.models import (
+    Caution,
     FinalWhistle,
     MatchEvent,
     ShotAtGoal,
-    SuccessfulShot,
     Substitution,
+    SuccessfulShot,
 )
 
 
@@ -26,56 +27,8 @@ class BetProcessingHandler(AbstractHandler):
             return
 
         sub = event.subelement
-        settled: list[Bet] = []
 
-        if isinstance(sub, Substitution):
-            for bet in bets:
-                if (
-                    bet.bet_status == BetStatus.PENDING
-                    and sub.player_in == bet.bet_info.bet_specs.player_id
-                ):
-                    bet.triggered = True
-                    bet.bet_status = BetStatus.ACTIVE
-                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
-                    print(f"Bet {bet.bet_info.bet_id} ACTIVE")
-                    for participant in bet.participants:
-                        await bet_settlement_notifier.notify_user(
-                            participant.user_id,
-                            {
-                                "type": "bet_updated",
-                                "bet_id": bet.bet_info.bet_id,
-                                "status": bet.bet_status.value,
-                            },
-                        )
-
-        elif isinstance(sub, ShotAtGoal):
-            if not isinstance(sub.subelement, SuccessfulShot):
-                return
-
-            scorer = sub.player
-            for bet in bets:
-                if (
-                    bet.bet_status == BetStatus.ACTIVE
-                    and scorer == bet.bet_info.bet_specs.player_id
-                ):
-                    bet.scored = True
-                    bet.bet_status = BetStatus.SUCCESS
-                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
-                    settled.append(bet)
-                    print(f"Bet {bet.bet_info.bet_id} SUCCESS")
-
-        elif isinstance(sub, FinalWhistle):
-            for bet in bets:
-                # Terminal bets were already settled; do not re-run _settle_bet on
-                # later FinalWhistle events (e.g. half-time vs full-time, or duplicates).
-                if bet.scored and bet.bet_status not in (
-                    BetStatus.SUCCESS,
-                    BetStatus.FAILED,
-                ):
-                    bet.bet_status = BetStatus.FAILED
-                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
-                    settled.append(bet)
-                    print(f"Bet {bet.bet_info.bet_id} FAILED")
+        settled: list[Bet] = await self._handle_substitution_bet(sub, bets)
 
         for bet in settled:
             await self._settle_bet(bet)
@@ -105,3 +58,77 @@ class BetProcessingHandler(AbstractHandler):
                     "new_balance": balance,
                 },
             )
+
+    async def _handle_substitution_bet(self, sub, bets) -> list:
+        settled: list[Bet] = []
+        if isinstance(sub, Substitution):
+            for bet in bets:
+                if (
+                    bet.bet_status == BetStatus.PENDING
+                    and sub.player_in == bet.bet_info.bet_specs.player_id
+                ):
+                    bet.triggered = True
+                    bet.bet_status = BetStatus.ACTIVE
+                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
+                    print(f"Bet {bet.bet_info.bet_id} ACTIVE")
+                    for participant in bet.participants:
+                        await bet_settlement_notifier.notify_user(
+                            participant.user_id,
+                            {
+                                "type": "bet_updated",
+                                "bet_id": bet.bet_info.bet_id,
+                                "status": bet.bet_status.value,
+                            },
+                        )
+
+        elif isinstance(sub, ShotAtGoal):
+            if not isinstance(sub.subelement, SuccessfulShot):
+                return []
+
+            scorer = sub.player
+            for bet in bets:
+                if (
+                    bet.bet_status == BetStatus.ACTIVE
+                    and scorer == bet.bet_info.bet_specs.player_id
+                ):
+                    bet.scored = True
+                    bet.bet_status = BetStatus.SUCCESS
+                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
+                    settled.append(bet)
+                    print(f"Bet {bet.bet_info.bet_id} SUCCESS")
+
+        elif isinstance(sub, FinalWhistle):
+            for bet in bets:
+                # Terminal bets were already settled; do not re-run _settle_bet on
+                # later FinalWhistle events (e.g. half-time vs full-time, or duplicates).
+                if bet.scored and bet.bet_status not in (
+                    BetStatus.SUCCESS,
+                    BetStatus.FAILED,
+                ):
+                    bet.bet_status = BetStatus.FAILED
+                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
+                    settled.append(bet)
+                    print(f"Bet {bet.bet_info.bet_id} FAILED")
+
+        return settled
+
+    async def _handle_number_of_yellow_cards(self, sub, bets) -> list:
+        settled: list[Bet] = []
+
+        if isinstance(sub, ShotAtGoal):
+            for bet in bets:
+                if bet.bet_status == BetStatus.PENDING:
+                    bet.triggered = True
+                    bet.bet_status = BetStatus.ACTIVE
+                    await bet_cache.update_bet(bet.bet_info.bet_id, bet)
+                    for participant in bet.participants:
+                        await bet_settlement_notifier.notify_user(
+                            participant.user_id,
+                            {
+                                "type": "bet_updated",
+                                "bet_id": bet.bet_info.bet_id,
+                                "status": bet.bet_status.value,
+                            },
+                        )
+
+        return settled

@@ -56,6 +56,7 @@ from feed_handler.cache.dto.BetDtos import (
 from feed_handler.consumers.handlers.dto.BetTypes import BetTypes
 from feed_handler.publishing_bets.BetNotifier import bet_notifier
 from feed_handler.publishing_bets.BetOpportunity import BetOpportunity
+from feed_handler.publishing_bets.TeamInfo import match_result_context
 
 load_dotenv()
 
@@ -87,6 +88,10 @@ _FAKE_TEAMS = [
     "RB Leipzig",
     "Eintracht Frankfurt",
 ]
+
+# The two team IDs used in the anonymised match data
+_TEAM_LEFT = "DFL-CLU-000002"
+_TEAM_RIGHT = "DFL-CLU-000001"
 
 
 def _make_fake_opportunity(window_seconds: int = 120) -> BetOpportunity:
@@ -333,3 +338,72 @@ async def debug_list_bets(
         "count": len(bets),
         "bets": [b.model_dump(mode="json") for b in bets],
     }
+
+
+# ---------------------------------------------------------------------------
+# Match-result bet helpers
+# ---------------------------------------------------------------------------
+
+
+@debug_router.post(
+    "/trigger/match_result",
+    summary="Fire a fake match_result bet_opportunity to all clients",
+)
+async def trigger_match_result(
+    window_seconds: int = Query(
+        default=5400,
+        ge=30,
+        le=7200,
+        description="Betting window in seconds (default 90 min)",
+    ),
+):
+    opportunity = BetOpportunity(
+        bet_type=BetTypes.MATCH_RESULT.value,
+        trigger_event_id=str(uuid.uuid4()),
+        window_seconds=window_seconds,
+        match_id=_MATCH_ID,
+        context=match_result_context(_TEAM_LEFT, _TEAM_RIGHT),
+        expires_at=datetime.now(timezone.utc) + timedelta(seconds=window_seconds),
+        bet_id=uuid.uuid4(),
+    )
+    await bet_notifier.notify(opportunity)
+    return {"sent": True, "opportunity": opportunity.model_dump(mode="json")}
+
+
+@debug_router.post(
+    "/bet/settle_match_result",
+    summary="Simulate a full-time whistle and settle all match_result bets",
+)
+async def debug_settle_match_result(
+    final_result: str = Query(
+        default="1:0",
+        description="Score string 'home:away' e.g. '2:1'. Home = team_left from kick-off.",
+    ),
+):
+    """
+    Parses the score and settles every open match_result bet:
+    - Participants who bet on the winning team → SUCCESS
+    - Everyone else (loser or draw) → FAILED
+    """
+    try:
+        left_str, right_str = final_result.split(":")
+        int(left_str)
+        int(right_str)
+    except ValueError:
+        from fastapi import HTTPException as _HTTPException
+
+        raise _HTTPException(
+            status_code=422,
+            detail="final_result must be in 'home:away' format, e.g. '2:1'",
+        )
+
+    from feed_handler.consumers.handlers.MatchResultBetHandler import (
+        MatchResultBetHandler,
+    )
+
+    handler = MatchResultBetHandler()
+
+    # Reuse the handler's internal settlement logic directly
+    await handler._settle_all(final_result)
+
+    return {"settled": True, "final_result": final_result}

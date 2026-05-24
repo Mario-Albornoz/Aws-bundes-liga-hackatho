@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { useApi } from "@/src/api/ApiContext";
+import { getTeamName } from "@/src/api/teamNames";
 import type { Bet, BetStatus } from "@/src/api/types/bets";
 
 // ─── status config ───────────────────────────────────────────────────────────
@@ -27,22 +28,33 @@ const STATUS_CONFIG: Record<
 function BetCard({ bet, userId }: { bet: Bet; userId: number }) {
   const cfg = STATUS_CONFIG[bet.bet_status];
   const me = bet.participants.find((p) => p.user_id === userId);
-  const positionLabel = me?.position ? "YES" : "NO";
   const amount = me?.bet_amount ?? "?";
+  const isMatchResult = bet.bet_info.bet_type === "match_result";
+
+  // ── Match Result ──────────────────────────────────────────────────────────
+  // body: "Bayern wins"  subtitle: "Full Match"
+  // ── Substitution ─────────────────────────────────────────────────────────
+  // body: player identifier  subtitle: team name  badge: YES / NO
+  const bodyText = isMatchResult
+    ? `${getTeamName(bet.bet_info.bet_specs.team_id ?? "")} wins`
+    : (bet.bet_info.bet_specs.player_id ?? "—");
+
+  const subtitleText = isMatchResult
+    ? "Full Match"
+    : getTeamName(bet.bet_info.bet_specs.team_id ?? "");
 
   return (
     <View style={[styles.card, { backgroundColor: cfg.bg }]}>
       <View style={styles.cardHeader}>
         <View style={[styles.dot, { backgroundColor: cfg.dot }]} />
         <Text style={[styles.statusLabel, { color: cfg.text }]}>{cfg.label}</Text>
-        <Text style={styles.positionBadge}>{positionLabel}</Text>
+        {/* For substitution bets show YES/NO; for match-result the team name is self-explanatory */}
+        {!isMatchResult && (
+          <Text style={styles.positionBadge}>{me?.position ? "YES" : "NO"}</Text>
+        )}
       </View>
-      <Text style={styles.playerName} numberOfLines={1}>
-        {bet.bet_info.bet_specs.player_id}
-      </Text>
-      <Text style={styles.teamName} numberOfLines={1}>
-        {bet.bet_info.bet_specs.team_id ?? "—"}
-      </Text>
+      <Text style={styles.playerName} numberOfLines={1}>{bodyText}</Text>
+      <Text style={styles.teamName} numberOfLines={1}>{subtitleText}</Text>
       <Text style={styles.stakeText}>{amount} coins</Text>
     </View>
   );

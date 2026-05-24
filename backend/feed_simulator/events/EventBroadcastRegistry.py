@@ -1,5 +1,6 @@
 from feed_handler.consumers.handlers.BetProcessingHandler import BetProcessingHandler
 from feed_handler.consumers.handlers.BetPublishingHandler import BetPublishingHandler
+from feed_handler.consumers.handlers.MatchResultBetHandler import MatchResultBetHandler
 from feed_handler.consumers.handlers.dto.BetTypes import BetTypes
 from feed_handler.publishing_bets.BetNotifier import bet_notifier
 from feed_handler.publishing_bets.BetRuleEngine import bet_rule_engine
@@ -21,13 +22,13 @@ class EventBroadcastRegistry(BroadcastRegistry):
     ) -> EventBroadcaster:
         broadcaster = await super().get_or_create(match_id=match_id, speed=speed)
         if match_id not in self._consumers:
-
             consumer = FeedConsumer(
                 match_id=match_id,
                 broadcaster=broadcaster,
-                # assing handlers here, all new processing or publishing handlers should be attached to this handlers list
+                # Add new processing/publishing handlers here
                 handlers=[
                     BetProcessingHandler(BetTypes.SUBSTITUTION.value),
+                    MatchResultBetHandler(),
                     BetPublishingHandler(),
                 ],
             )

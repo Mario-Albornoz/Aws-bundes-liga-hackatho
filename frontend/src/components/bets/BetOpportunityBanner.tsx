@@ -8,11 +8,22 @@ import {
   View,
 } from "react-native";
 import { useApi } from "@/src/api/ApiContext";
-import type { BetOpportunity, BetCreateRequest } from "@/src/api/types/bets";
+import { getTeamName } from "@/src/api/teamNames";
+import type {
+  BetCreateRequest,
+  BetOpportunity,
+  MatchResultContext,
+  SubstitutionContext,
+} from "@/src/api/types/bets";
 
 interface Props {
   opportunity: BetOpportunity;
   onDismiss: () => void;
+}
+
+/** Use backend-provided name if available, otherwise fall back to shared lookup. */
+function teamLabel(id: string, name?: string): string {
+  return name && name.trim() ? name : getTeamName(id);
 }
 
 export function BetOpportunityBanner({ opportunity, onDismiss }: Props) {
@@ -24,15 +35,26 @@ export function BetOpportunityBanner({ opportunity, onDismiss }: Props) {
   const [result, setResult] = useState<"success" | "error" | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const isMatchResult = opportunity.bet_type === "match_result";
+  const subCtx = isMatchResult
+    ? null
+    : (opportunity.context as SubstitutionContext);
+  const mrCtx = isMatchResult
+    ? (opportunity.context as MatchResultContext)
+    : null;
+
   // Compute remaining seconds from expires_at
   useEffect(() => {
     const tick = () => {
       const diff = Math.max(
         0,
-        Math.floor((new Date(opportunity.expires_at).getTime() - Date.now()) / 1000)
+        Math.floor(
+          (new Date(opportunity.expires_at).getTime() - Date.now()) / 1000
+        )
       );
       setSecondsLeft(diff);
-      if (diff === 0) onDismiss();
+      // Match-result bets span the full game — don't auto-dismiss them
+      if (diff === 0 && !isMatchResult) onDismiss();
     };
     tick();
     const id = setInterval(tick, 1000);
@@ -57,7 +79,8 @@ export function BetOpportunityBanner({ opportunity, onDismiss }: Props) {
     }).start(onDismiss);
   }
 
-  async function handleJoin(position: boolean) {
+  async function handleSubstitutionJoin(position: boolean) {
+    if (!subCtx) return;
     const parsedAmount = parseInt(amount, 10);
     if (isNaN(parsedAmount) || parsedAmount <= 0) return;
 
@@ -71,19 +94,53 @@ export function BetOpportunityBanner({ opportunity, onDismiss }: Props) {
         duration: opportunity.window_seconds,
         match_id: opportunity.match_id,
         bet_specs: {
-          player_id: opportunity.context.player_on,
-          team_id: opportunity.context.team,
+          player_id: subCtx.player_on,
+          team_id: subCtx.team,
+          trigger_event_type: "Substitution",
+        },
+      },
+      bet_subscription: {
+        participant: { user_id: userId, bet_amount: parsedAmount, position },
+      },
+    };
+
+    await submitBet(body);
+  }
+
+  async function handleMatchResultJoin(chosenTeamId: string) {
+    if (!mrCtx) return;
+    const parsedAmount = parseInt(amount, 10);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) return;
+
+    setJoining(true);
+    setResult(null);
+
+    const body: BetCreateRequest = {
+      bet_info: {
+        bet_id: opportunity.bet_id,
+        bet_type: "match_result",
+        duration: opportunity.window_seconds,
+        match_id: opportunity.match_id,
+        bet_specs: {
+          trigger_event_type: "KickOff",
+          team_id: chosenTeamId,
+          team_left: mrCtx.team_left,
+          team_right: mrCtx.team_right,
         },
       },
       bet_subscription: {
         participant: {
           user_id: userId,
           bet_amount: parsedAmount,
-          position,
+          position: true, // position=true always means "I bet my chosen team wins"
         },
       },
     };
 
+    await submitBet(body);
+  }
+
+  async function submitBet(body: BetCreateRequest) {
     try {
       await createBet(body);
       setResult("success");
@@ -96,10 +153,15 @@ export function BetOpportunityBanner({ opportunity, onDismiss }: Props) {
     }
   }
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const secs = secondsLeft % 60;
-  const timeStr = `${minutes}:${secs.toString().padStart(2, "0")}`;
-  const urgentColor = secondsLeft <= 30 ? "#ef4444" : "#22c55e";
+  // Match-result bets last the whole match — show "Full Match" instead of a countdown
+  const timerLabel = isMatchResult
+    ? "Full Match"
+    : (() => {
+        const m = Math.floor(secondsLeft / 60);
+        const s = secondsLeft % 60;
+        return `${m}:${s.toString().padStart(2, "0")}`;
+      })();
+  const urgentColor = isMatchResult ? "#22c55e" : secondsLeft <= 30 ? "#ef4444" : "#22c55e";
 
   return (
     <Animated.View
@@ -110,58 +172,115 @@ export function BetOpportunityBanner({ opportunity, onDismiss }: Props) {
           <View style={styles.liveBadge}>
             <Text style={styles.liveBadgeText}>LIVE BET</Text>
           </View>
-          <Text style={[styles.timer, { color: urgentColor }]}>{timeStr}</Text>
+          <Text style={[styles.timer, { color: urgentColor }]}>{timerLabel}</Text>
         </View>
         <Pressable onPress={dismiss} style={styles.closeBtn} hitSlop={8}>
           <Text style={styles.closeBtnText}>✕</Text>
         </Pressable>
       </View>
 
-      <Text style={styles.title}>Substitution Incoming!</Text>
-      <Text style={styles.body}>
-        <Text style={styles.highlight}>{opportunity.context.player_on}</Text>
-        {" is coming on for "}
-        <Text style={styles.highlight}>{opportunity.context.team}</Text>.
-        {"\n"}Will they make an impact?
-      </Text>
-
-      {result === "success" ? (
-        <View style={styles.resultRow}>
-          <Text style={styles.successText}>✓ Bet placed!</Text>
-        </View>
-      ) : (
+      {isMatchResult && mrCtx ? (
+        // ── Match Result Bet ─────────────────────────────────────────
         <>
-          {result === "error" && (
-            <Text style={styles.errorText}>{errorMsg}</Text>
+          <Text style={styles.title}>Match Result Bet</Text>
+          <Text style={styles.body}>Which team will win the match?</Text>
+
+          {result === "success" ? (
+            <View style={styles.resultRow}>
+              <Text style={styles.successText}>✓ Bet placed!</Text>
+            </View>
+          ) : (
+            <>
+              {result === "error" && (
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              )}
+              <View style={styles.amountRow}>
+                <Text style={styles.amountLabel}>Stake</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  keyboardType="number-pad"
+                  value={amount}
+                  onChangeText={setAmount}
+                  maxLength={5}
+                  editable={!joining}
+                />
+                <Text style={styles.amountCurrency}>coins</Text>
+              </View>
+              <View style={styles.btnRow}>
+                <Pressable
+                  style={[styles.teamBtn, joining && styles.btnDisabled]}
+                  onPress={() => handleMatchResultJoin(mrCtx.team_left)}
+                  disabled={joining}
+                >
+                  <Text style={styles.teamBtnText}>
+                    {teamLabel(mrCtx.team_left, mrCtx.team_left_name)}
+                  </Text>
+                  <Text style={styles.teamBtnSub}>wins</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.teamBtn, joining && styles.btnDisabled]}
+                  onPress={() => handleMatchResultJoin(mrCtx.team_right)}
+                  disabled={joining}
+                >
+                  <Text style={styles.teamBtnText}>
+                    {teamLabel(mrCtx.team_right, mrCtx.team_right_name)}
+                  </Text>
+                  <Text style={styles.teamBtnSub}>wins</Text>
+                </Pressable>
+              </View>
+            </>
           )}
-          <View style={styles.amountRow}>
-            <Text style={styles.amountLabel}>Stake</Text>
-            <TextInput
-              style={styles.amountInput}
-              keyboardType="number-pad"
-              value={amount}
-              onChangeText={setAmount}
-              maxLength={5}
-              editable={!joining}
-            />
-            <Text style={styles.amountCurrency}>coins</Text>
-          </View>
-          <View style={styles.btnRow}>
-            <Pressable
-              style={[styles.yesBtn, joining && styles.btnDisabled]}
-              onPress={() => handleJoin(true)}
-              disabled={joining}
-            >
-              <Text style={styles.yesBtnText}>YES</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.noBtn, joining && styles.btnDisabled]}
-              onPress={() => handleJoin(false)}
-              disabled={joining}
-            >
-              <Text style={styles.noBtnText}>NO</Text>
-            </Pressable>
-          </View>
+        </>
+      ) : (
+        // ── Substitution Bet ─────────────────────────────────────────
+        <>
+          <Text style={styles.title}>Substitution Incoming!</Text>
+          <Text style={styles.body}>
+            <Text style={styles.highlight}>{subCtx?.player_on}</Text>
+            {" is coming on for "}
+            <Text style={styles.highlight}>{subCtx?.team}</Text>.
+            {"\n"}Will they make an impact?
+          </Text>
+
+          {result === "success" ? (
+            <View style={styles.resultRow}>
+              <Text style={styles.successText}>✓ Bet placed!</Text>
+            </View>
+          ) : (
+            <>
+              {result === "error" && (
+                <Text style={styles.errorText}>{errorMsg}</Text>
+              )}
+              <View style={styles.amountRow}>
+                <Text style={styles.amountLabel}>Stake</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  keyboardType="number-pad"
+                  value={amount}
+                  onChangeText={setAmount}
+                  maxLength={5}
+                  editable={!joining}
+                />
+                <Text style={styles.amountCurrency}>coins</Text>
+              </View>
+              <View style={styles.btnRow}>
+                <Pressable
+                  style={[styles.yesBtn, joining && styles.btnDisabled]}
+                  onPress={() => handleSubstitutionJoin(true)}
+                  disabled={joining}
+                >
+                  <Text style={styles.yesBtnText}>YES</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.noBtn, joining && styles.btnDisabled]}
+                  onPress={() => handleSubstitutionJoin(false)}
+                  disabled={joining}
+                >
+                  <Text style={styles.noBtnText}>NO</Text>
+                </Pressable>
+              </View>
+            </>
+          )}
         </>
       )}
     </Animated.View>
@@ -292,6 +411,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 14,
     letterSpacing: 0.5,
+  },
+  teamBtn: {
+    flex: 1,
+    backgroundColor: "#1d4ed8",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  teamBtnText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+    letterSpacing: 0.5,
+  },
+  teamBtnSub: {
+    color: "#93c5fd",
+    fontSize: 11,
+    marginTop: 2,
   },
   btnDisabled: {
     opacity: 0.5,

@@ -56,5 +56,16 @@ class BetSettlementNotifier:
             return_exceptions=True,
         )
 
+    async def notify_all_connected(self, message: dict) -> None:
+        """Broadcast a message to every user currently connected to /bets/stream."""
+        async with self._lock:
+            all_targets = [ws for conns in self._connections.values() for ws in conns]
+        if not all_targets:
+            return
+        await asyncio.gather(
+            *[ws.send_json(message) for ws in all_targets],
+            return_exceptions=True,
+        )
+
 
 bet_settlement_notifier = BetSettlementNotifier()

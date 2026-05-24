@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import { usePositionalStream } from "../../src/api/usePositionalStream";
 import { useApi } from "../../src/api/ApiContext";
@@ -10,8 +10,13 @@ import { BetStatusDashboard } from "../../src/components/bets/BetStatusDashboard
 
 export default function MatchScreen() {
   const positional = usePositionalStream();
-  const { connectBetSettlementSocket, disconnectBetSettlementSocket } = useApi();
-  const [activeBet, setActiveBet] = useState<BetOpportunityMessage | null>(null);
+  const {
+    connectBetSettlementSocket,
+    disconnectBetSettlementSocket,
+    latestBetOpportunity,
+    clearLatestBetOpportunity,
+    setLatestBetOpportunity,
+  } = useApi();
 
   useEffect(() => {
     positional.connect();
@@ -22,23 +27,24 @@ export default function MatchScreen() {
     };
   }, []);
 
-  const handleBetOpportunity = useCallback((msg: BetOpportunityMessage) => {
-    setActiveBet(msg);
-  }, []);
-
-  const handleDismiss = useCallback(() => {
-    setActiveBet(null);
-  }, []);
+  // Chat-room path: forwards opportunities to the shared ApiContext state
+  // so both delivery channels (settlement socket + chat room) use one banner.
+  const handleBetOpportunity = useCallback(
+    (msg: BetOpportunityMessage) => {
+      setLatestBetOpportunity(msg.opportunity);
+    },
+    [setLatestBetOpportunity]
+  );
 
   return (
     <View style={styles.container}>
       <PitchCanvas lastMessage={positional.lastMessage} />
       <ChatOverlay onBetOpportunity={handleBetOpportunity} />
       <BetStatusDashboard />
-      {activeBet && (
+      {latestBetOpportunity && (
         <BetOpportunityBanner
-          opportunity={activeBet.opportunity}
-          onDismiss={handleDismiss}
+          opportunity={latestBetOpportunity}
+          onDismiss={clearLatestBetOpportunity}
         />
       )}
     </View>

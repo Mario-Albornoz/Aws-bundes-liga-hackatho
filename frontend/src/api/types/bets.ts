@@ -1,9 +1,21 @@
 export type BetStatus = 'PENDING' | 'ACTIVE' | 'SUCCESS' | 'FAILED';
 
-export interface BetOpportunityContext {
+/** Context payload for a substitution bet opportunity. */
+export interface SubstitutionContext {
   player_on: string;
   team: string;
 }
+
+/** Context payload for a match-result bet opportunity. */
+export interface MatchResultContext {
+  team_left: string;
+  team_right: string;
+  team_left_name?: string;
+  team_right_name?: string;
+}
+
+/** Union of all possible opportunity context shapes. */
+export type BetOpportunityContext = SubstitutionContext | MatchResultContext;
 
 export interface BetOpportunity {
   bet_type: string;
@@ -21,7 +33,7 @@ export interface BetOpportunityMessage {
 }
 
 /** Matches backend `BetTypes` string values. */
-export type BetType = 'substitution';
+export type BetType = 'substitution' | 'match_result';
 
 export interface BetParticipant {
   user_id: number;
@@ -30,9 +42,12 @@ export interface BetParticipant {
 }
 
 export interface BetSpecifications {
-  player_id: string;
+  player_id?: string | null;
   trigger_event_type?: string;
   team_id?: string | null;
+  /** Home/away team IDs carried for match-result settlement */
+  team_left?: string | null;
+  team_right?: string | null;
 }
 
 export interface BetInfo {
