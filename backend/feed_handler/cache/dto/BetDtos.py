@@ -20,18 +20,22 @@ class BetParticipant(BaseModel):
 
 
 class BetSpecifications(BaseModel):
-    player_id: str
+    player_id: Optional[str] = None
 
     trigger_event_type: str = "Substitution"
 
+    # Which team the user is betting on to win (match_result bets)
     team_id: Optional[str] = None
+    # Home/away team IDs stored for result parsing during settlement
+    team_left: Optional[str] = None
+    team_right: Optional[str] = None
 
 
 class BetInfo(BaseModel):
     bet_id: str
     bet_type: BetTypes
     duration: int = Field(..., gt=0)
-    match_id: int
+    match_id: str
     bet_specs: BetSpecifications
 
 

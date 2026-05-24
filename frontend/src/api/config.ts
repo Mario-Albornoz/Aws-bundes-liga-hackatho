@@ -41,3 +41,23 @@ export function getPositionalStreamUrl(speed: number, seq: number): string {
 export function getEventsStreamUrl(speed: number, seq: number): string {
   return `${getWebSocketBaseUrl()}/events/stream?speed=${speed}&seq=${seq}`;
 }
+
+export function getRegisterUrl(): string {
+  return `${getApiBaseUrl()}/auth/register`;
+}
+
+export function getLoginUrl(): string {
+  return `${getApiBaseUrl()}/auth/login`;
+}
+
+export function getRefreshUrl(): string {
+  return `${getApiBaseUrl()}/auth/refresh`;
+}
+
+export function getLogoutUrl(): string {
+  return `${getApiBaseUrl()}/auth/logout`;
+}
+
+export function getMeUrl(): string {
+  return `${getApiBaseUrl()}/auth/me`;
+}

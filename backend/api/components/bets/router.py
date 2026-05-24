@@ -3,22 +3,45 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 from api.components.bets.settlement_notifier import bet_settlement_notifier
 from feed_handler.cache.BetCache import bet_cache
 from feed_handler.cache.dto.BetDtos import Bet, BetCreateRequest
+from feed_handler.publishing_bets.BetOpportunityStore import bet_opportunity_store
 
 router = APIRouter(prefix="/bets", tags=["bets"])
 
 
 @router.post("/create", response_model=Bet)
 async def create_bet(request: BetCreateRequest) -> Bet:
-    return bet_cache.create_or_update_bet(request)
+    bet = bet_cache.create_or_update_bet(request)
+    await bet_settlement_notifier.push_snapshot(
+        request.bet_subscription.participant.user_id
+    )
+    return bet
 
 
 @router.websocket("/stream")
 async def bet_settlement_stream(
     websocket: WebSocket,
-    user_id: int = Query(..., ge=1, description="User id to receive settlement messages for"),
+    user_id: int = Query(
+        ..., ge=1, description="User id to receive settlement messages for"
+    ),
 ):
     await bet_settlement_notifier.subscribe(user_id, websocket)
     try:
+        # Send the user's current bet list
+        current_bets = await bet_cache.get_bets_by_user_id(user_id=user_id)
+        await websocket.send_json(
+            {
+                "type": "bet_snapshot",
+                "bets": [b.model_dump(mode="json") for b in current_bets],
+            }
+        )
+        # Send any currently-open bet opportunities so the user sees them immediately
+        for opportunity in bet_opportunity_store.get_active():
+            await websocket.send_json(
+                {
+                    "type": "bet_opportunity",
+                    "opportunity": opportunity.model_dump(mode="json"),
+                }
+            )
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
