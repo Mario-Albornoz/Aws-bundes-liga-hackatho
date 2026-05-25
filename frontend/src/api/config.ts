@@ -42,6 +42,14 @@ export function getEventsStreamUrl(speed: number, seq: number): string {
   return `${getWebSocketBaseUrl()}/events/stream?speed=${speed}&seq=${seq}`;
 }
 
+export function getReplayStatusUrl(): string {
+  return `${getApiBaseUrl()}/replay/status`;
+}
+
+export function getReplayStreamUrl(fromChunk: number): string {
+  return `${getWebSocketBaseUrl()}/replay/stream?from_chunk=${fromChunk}&speed=1`;
+}
+
 export function getRegisterUrl(): string {
   return `${getApiBaseUrl()}/auth/register`;
 }

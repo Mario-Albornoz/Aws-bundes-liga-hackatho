@@ -1,11 +1,12 @@
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
+from typing import Generic, TypeVar
 
-from feed_simulator.events.models import MatchEvent
+T = TypeVar("T")
 
 
-class AbstractHandler(ABC):
+class AbstractHandler(ABC, Generic[T]):
     @abstractmethod
-    async def handle(self, event: MatchEvent):
+    async def handle(self, event: T):
         pass
 
     @abstractmethod
