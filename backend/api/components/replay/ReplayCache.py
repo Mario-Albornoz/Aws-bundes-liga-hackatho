@@ -8,6 +8,44 @@ load_dotenv()
 
 _STREAM_TTL = int(os.getenv("REPLAY_STREAM_TTL", "14400"))
 
+# Frames are stored as arrays to avoid repeating field name strings
+# for every player in every frame. Field order is the contract between pack/unpack.
+_PERSON_FIELDS = ("person_id", "team_id", "x", "y", "speed", "distance", "acceleration")
+_BALL_FIELDS = (
+    "x",
+    "y",
+    "z",
+    "speed",
+    "distance",
+    "acceleration",
+    "status",
+    "possession",
+)
+
+
+def _frame_to_array(frame: dict) -> list:
+    ball = frame["ball"]
+    return [
+        frame["frame_n"],
+        frame["timestamp"],
+        frame["game_section"],
+        frame["match_id"],
+        [[p[k] for k in _PERSON_FIELDS] for p in frame["persons"]],
+        [ball[k] for k in _BALL_FIELDS],
+    ]
+
+
+def _array_to_frame(arr: list) -> dict:
+    frame_n, timestamp, game_section, match_id, persons_arr, ball_arr = arr
+    return {
+        "frame_n": frame_n,
+        "timestamp": timestamp,
+        "game_section": game_section,
+        "match_id": match_id,
+        "persons": [dict(zip(_PERSON_FIELDS, p)) for p in persons_arr],
+        "ball": dict(zip(_BALL_FIELDS, ball_arr)),
+    }
+
 
 class ReplayCache:
     CHUNK_SIZE = int(os.getenv("REPLAY_CHUNK_SIZE", "25"))
@@ -32,7 +70,11 @@ class ReplayCache:
     async def _flush(self) -> None:
         if not self._pending:
             return
-        packed = msgpack.packb(self._pending, use_bin_type=True)
+        packed = msgpack.packb(
+            [_frame_to_array(f) for f in self._pending],
+            use_bin_type=True,
+            use_single_float=True,
+        )
         entry_id = await async_redis_client.xadd(self._stream_key, {"data": packed})
         await async_redis_client.rpush(self._index_key, entry_id)
         if not self._ttl_set:
@@ -84,7 +126,9 @@ class ReplayCache:
         if not entries:
             return None
         _, fields = entries[0]
-        return msgpack.unpackb(fields[b"data"], raw=False)
+        return [
+            _array_to_frame(arr) for arr in msgpack.unpackb(fields[b"data"], raw=False)
+        ]
 
 
 replay_cache = ReplayCache(match_id=os.getenv("MATCH_ID", ""))

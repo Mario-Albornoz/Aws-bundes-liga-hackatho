@@ -1,4 +1,4 @@
-import { useCallback, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { usePositionalStream } from "../../src/api/usePositionalStream";
 import {
