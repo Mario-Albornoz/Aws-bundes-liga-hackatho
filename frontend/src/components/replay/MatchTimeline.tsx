@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { StyleSheet, View, Text, PanResponder } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { AnimatedPressable } from "../ui/AnimatedPressable";
 
@@ -22,6 +23,7 @@ export function MatchTimeline({
   onSkipBack,
   onSkipForward,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const boundsRef = useRef({ x: 0, width: 1 });
   const trackRef = useRef<View>(null);
   const disabledRef = useRef(disabled);
@@ -82,7 +84,7 @@ export function MatchTimeline({
   const progress = Math.max(0, Math.min(1, scrubRatio));
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: insets.bottom + 16 }]}>
       <View style={styles.topRow}>
         <AnimatedPressable style={styles.liveBtn} onPress={onGoLive}>
           <Text style={styles.liveBtnText}>Go Live</Text>
@@ -131,7 +133,7 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: "rgba(0,0,0,0.72)",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
     zIndex: 20,
     elevation: 20,
   },

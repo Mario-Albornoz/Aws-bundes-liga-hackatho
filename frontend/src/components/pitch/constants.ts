@@ -31,6 +31,9 @@ export const GOAL_DEPTH = 2;
 
 export const CORNER_ARC_RADIUS = 1;
 
+// Extra grass surface that extends beyond the boundary lines (metres)
+export const PITCH_SURFACE_PADDING = 3;
+
 // Ball dimensions (metres)
 export const BALL_RADIUS = 0.11;
 

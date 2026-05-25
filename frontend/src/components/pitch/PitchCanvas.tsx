@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef } from "react";
+import { RefObject, useCallback, useEffect, useRef } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, View } from "react-native";
 import { AnimatedPressable } from "../ui/AnimatedPressable";
 import { GLView } from "expo-gl";
 import { GestureDetector } from "react-native-gesture-handler";
 import { Mesh, Scene } from "three";
-import { WSServerMessage } from "../../types/common";
 import { PositionalFrame } from "../../types/positional";
 import { useThreeScene } from "./hooks/useThreeScene";
 import { usePositionSync } from "./hooks/usePositionSync";
@@ -12,24 +12,14 @@ import { createPitchGeometry } from "./mesh/PitchMesh";
 import { createBallMesh } from "./mesh/BallMesh";
 
 interface Props {
-  lastMessage: string | null;
+  frameRef: RefObject<PositionalFrame | null>;
 }
 
-export function PitchCanvas({ lastMessage }: Props) {
+export function PitchCanvas({ frameRef }: Props) {
+  const insets = useSafeAreaInsets();
   const sceneRef = useRef<Scene | null>(null);
   const ballMeshRef = useRef<Mesh | null>(null);
   const playerMeshMap = useRef<Map<string, Mesh>>(new Map());
-  const latestFrameRef = useRef<PositionalFrame | null>(null);
-
-  useEffect(() => {
-    if (!lastMessage) return;
-    try {
-      const msg = JSON.parse(lastMessage) as WSServerMessage<PositionalFrame>;
-      if (msg.type === "positional") {
-        latestFrameRef.current = msg.payload;
-      }
-    } catch {}
-  }, [lastMessage]);
 
   const onSceneReady = useCallback((scene: Scene) => {
     sceneRef.current = scene;
@@ -45,7 +35,7 @@ export function PitchCanvas({ lastMessage }: Props) {
     sceneRef,
     ballMeshRef,
     playerMeshMap,
-    latestFrameRef,
+    frameRef,
   );
   const { onContextCreate, dispose, cameraGesture, resetCamera } =
     useThreeScene(onSceneReady, onTick);
@@ -59,7 +49,7 @@ export function PitchCanvas({ lastMessage }: Props) {
       <GestureDetector gesture={cameraGesture}>
         <GLView style={styles.gl} onContextCreate={onContextCreate} />
       </GestureDetector>
-      <AnimatedPressable style={styles.resetButton} onPress={resetCamera}>
+      <AnimatedPressable style={[styles.resetButton, { bottom: insets.bottom + 120 }]} onPress={resetCamera}>
         <Text style={styles.resetButtonText}>Reset</Text>
       </AnimatedPressable>
     </View>
@@ -71,7 +61,6 @@ const styles = StyleSheet.create({
   gl: { flex: 1 },
   resetButton: {
     position: "absolute",
-    bottom: 120,
     right: 16,
     backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: 16,

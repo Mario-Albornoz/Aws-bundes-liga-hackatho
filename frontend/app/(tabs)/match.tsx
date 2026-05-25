@@ -15,7 +15,6 @@ import { ChatOverlay } from "../../src/components/chat/ChatOverlay";
 import { BetOpportunityBanner } from "../../src/components/bets/BetOpportunityBanner";
 import { BetStatusDashboard } from "../../src/components/bets/BetStatusDashboard";
 import { MatchTimeline } from "../../src/components/replay/MatchTimeline";
-import { WSServerMessage } from "../../src/types/common";
 import { PositionalFrame } from "../../src/types/positional";
 
 type PlaybackMode = "live" | "dvr";
@@ -25,16 +24,6 @@ function ratioToChunk(ratio: number, flushedChunks: number): number {
   return Math.min(Math.floor(ratio * flushedChunks), flushedChunks - 1);
 }
 
-function frameNFromMessage(raw: string | null): number | null {
-  if (!raw) return null;
-  try {
-    const msg = JSON.parse(raw) as WSServerMessage<PositionalFrame>;
-    if (msg.type === "positional" && typeof msg.seq === "number") {
-      return msg.seq;
-    }
-  } catch {}
-  return null;
-}
 
 export default function MatchScreen() {
   const positional = usePositionalStream();
@@ -55,9 +44,10 @@ export default function MatchScreen() {
   flushedChunksRef.current = flushedChunks;
   const lastPlayedChunkRef = useRef(0);
   const { liveEdgeSeq, firstFrameN } = replay;
+  const frameRef = useRef<PositionalFrame | null>(null);
 
   useEffect(() => {
-    positional.connect(1, 0);
+    positional.connect(1, 0, frameRef);
     connectBetSettlementSocket();
     return () => {
       {
@@ -93,20 +83,17 @@ export default function MatchScreen() {
       setScrubRatio(chunkToRatio(clamped, chunks));
       setMode("dvr");
       setIsScrubbing(false);
-      replay.connect(clamped);
+      replay.connect(clamped, frameRef);
       positional.disconnect();
     },
     [positional, replay],
   );
 
   const getCurrentFrameN = useCallback((): number | null => {
-    const fromReplay = frameNFromMessage(replay.lastMessage);
-    const fromLive = frameNFromMessage(positional.lastMessage);
-
     if (mode === "dvr") {
-      if (fromReplay != null) return fromReplay;
+      if (replay.lastSeq != null) return replay.lastSeq;
     } else {
-      const fromActive = fromLive ?? fromReplay;
+      const fromActive = positional.lastSeq ?? replay.lastSeq;
       if (fromActive != null) return fromActive;
       if (liveEdgeSeq != null) return liveEdgeSeq;
     }
@@ -122,8 +109,8 @@ export default function MatchScreen() {
     return null;
   }, [
     mode,
-    replay.lastMessage,
-    positional.lastMessage,
+    replay.lastSeq,
+    positional.lastSeq,
     liveEdgeSeq,
     replay.replayStatus.first_frame_n,
     scrubRatio,
@@ -178,14 +165,9 @@ export default function MatchScreen() {
   );
 
   useEffect(() => {
-    if (mode !== "dvr" || !replay.lastMessage) return;
-    try {
-      const msg = JSON.parse(replay.lastMessage) as WSServerMessage;
-      if (msg.type === "positional" && typeof msg.seq === "number") {
-        lastPlayedChunkRef.current = frameNToChunk(msg.seq, replay.firstFrameN);
-      }
-    } catch {}
-  }, [mode, replay.lastMessage, replay.firstFrameN]);
+    if (mode !== "dvr" || replay.lastSeq == null) return;
+    lastPlayedChunkRef.current = frameNToChunk(replay.lastSeq, replay.firstFrameN);
+  }, [mode, replay.lastSeq, replay.firstFrameN]);
 
   function handleGoLive() {
     if (mode === "live" && !isScrubbing) return;
@@ -195,15 +177,12 @@ export default function MatchScreen() {
     setScrubRatio(1);
     setIsScrubbing(false);
     const resumeSeq = liveEdgeSeq ?? 0;
-    positional.connect(1, resumeSeq);
+    positional.connect(1, resumeSeq, frameRef);
   }
-
-  const activeMessage =
-    mode === "dvr" ? replay.lastMessage : positional.lastMessage;
 
   return (
     <View style={styles.container}>
-      <PitchCanvas lastMessage={activeMessage} />
+      <PitchCanvas frameRef={frameRef} />
       <MatchTimeline
         scrubRatio={scrubRatio}
         disabled={flushedChunks === 0}

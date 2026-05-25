@@ -26,6 +26,7 @@ import {
   PITCH_HALF_LENGTH,
   PITCH_HALF_WIDTH,
   PITCH_LENGTH,
+  PITCH_SURFACE_PADDING,
   PITCH_WIDTH,
 } from "../constants";
 
@@ -130,7 +131,7 @@ function addPenaltySpotAndArc(v: number[], s: number, penArcHalf: number) {
 
 function addGoalFrame(v: number[], s: number) {
   const gx = s * PITCH_HALF_LENGTH;
-  const back = gx - s * GOAL_DEPTH;
+  const back = gx + s * GOAL_DEPTH;
   const hw = GOAL_HALF_WIDTH;
   const h = GOAL_HEIGHT;
 
@@ -219,7 +220,7 @@ export function createPitchGeometry(): Group {
   const group = new Group();
 
   const surface = new Mesh(
-    new BoxGeometry(PITCH_LENGTH, PITCH_WIDTH, 2),
+    new BoxGeometry(PITCH_LENGTH + 2 * PITCH_SURFACE_PADDING, PITCH_WIDTH + 2 * PITCH_SURFACE_PADDING, 2),
     new MeshLambertMaterial({ color: COLOR_PITCH_SURFACE }),
   );
   surface.rotation.x = -Math.PI / 2;

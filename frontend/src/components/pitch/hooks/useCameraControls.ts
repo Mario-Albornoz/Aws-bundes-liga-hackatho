@@ -45,8 +45,7 @@ export function useCameraControls() {
     const camera = new PerspectiveCamera(CAMERA_FOV, aspect, 0.1, 500);
 
     const radius =
-      (PITCH_WIDTH / 2 / Math.tan(FOV_RAD / 2) / Math.sin(CAMERA_MAX_PHI)) *
-      2.5;
+      (PITCH_WIDTH / 2 / Math.tan(FOV_RAD / 2) / Math.sin(CAMERA_MAX_PHI)) * 3;
     const maxRadius =
       (PITCH_WIDTH / 2 / Math.tan(FOV_RAD / 2) / Math.sin(CAMERA_MAX_PHI)) * 4;
     radiusRef.current = radius;

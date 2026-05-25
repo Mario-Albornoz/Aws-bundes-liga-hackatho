@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { PositionalSocket } from "./PositionalSocket";
 import { StreamStatus } from "./useEventsStream";
 import { getReplayStatusUrl, getReplayStreamUrl } from "./config";
+import { WSServerMessage } from "../types/common";
+import { PositionalFrame } from "../types/positional";
 
 export const REPLAY_CHUNK_SIZE = Number(process.env.EXPO_PUBLIC_REPLAY_CHUNK_SIZE ?? "25");
 export const REPLAY_FRAME_INTERVAL_SEC = Number(process.env.EXPO_PUBLIC_REPLAY_FRAME_INTERVAL_SEC ?? "0.04");
@@ -36,7 +38,7 @@ export function chunkToRatio(chunk: number, flushedChunks: number): number {
 
 export function useReplayStream() {
   const [status, setStatus] = useState<StreamStatus>("idle");
-  const [lastMessage, setLastMessage] = useState<string | null>(null);
+  const [lastSeq, setLastSeq] = useState<number | null>(null);
   const [replayStatus, setReplayStatus] = useState<ReplayStatus>({
     available: false,
     chunk_count: 0,
@@ -47,6 +49,7 @@ export function useReplayStream() {
   });
   const socketRef = useRef<PositionalSocket | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const targetFrameRef = useRef<RefObject<PositionalFrame | null> | null>(null);
 
   const totalChunks = bufferedChunkCount(replayStatus);
 
@@ -68,14 +71,26 @@ export function useReplayStream() {
     };
   }, []);
 
-  const connect = useCallback((fromChunk = 0) => {
+  const connect = useCallback((fromChunk = 0, frameRef?: RefObject<PositionalFrame | null>) => {
+    if (frameRef !== undefined) {
+      targetFrameRef.current = frameRef;
+    }
     socketRef.current?.close();
-    setLastMessage(null);
+    setLastSeq(null);
     setStatus("connecting");
     const url = getReplayStreamUrl(fromChunk);
     socketRef.current = new PositionalSocket(url, {
       onOpen: () => setStatus("connected"),
-      onMessage: (data) => setLastMessage(data),
+      onMessage: (data) => {
+        try {
+          const msg = JSON.parse(data) as WSServerMessage<PositionalFrame>;
+          if (msg.type === "positional") {
+            const ref = targetFrameRef.current;
+            if (ref) ref.current = msg.payload;
+            setLastSeq(msg.seq);
+          }
+        } catch {}
+      },
       onClose: () => setStatus("closed"),
       onError: () => setStatus("error"),
     });
@@ -104,7 +119,7 @@ export function useReplayStream() {
 
   return {
     status,
-    lastMessage,
+    lastSeq,
     replayStatus,
     totalChunks,
     liveEdgeSeq: replayStatus.live_edge_seq,
