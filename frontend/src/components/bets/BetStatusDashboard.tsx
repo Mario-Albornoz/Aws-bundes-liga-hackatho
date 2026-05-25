@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { useApi } from "@/src/api/ApiContext";
@@ -62,10 +63,22 @@ function BetCard({ bet, userId }: { bet: Bet; userId: number }) {
 
 // ─── dashboard ───────────────────────────────────────────────────────────────
 
+// MatchTimeline sits at bottom:0 and is ~60px tall; keep clear of it.
+const TIMELINE_HEIGHT = 60;
+// Top offset shared with ChatOverlay toggle: sits just below the slim header bar.
+const OVERLAY_TOP = 64;
+
 export function BetStatusDashboard() {
   const { myBets, userId, settlementSocketStatus } = useApi();
+  const { height: windowHeight } = useWindowDimensions();
   const [isOpen, setIsOpen] = useState(false);
   const slideAnim = useRef(new Animated.Value(0)).current;
+  // Max height for the scrollable list: full available area minus header,
+  // toggle button, top offset, and timeline at the bottom.
+  const listMaxHeight = Math.max(
+    120,
+    windowHeight - OVERLAY_TOP - TIMELINE_HEIGHT - 120,
+  );
 
   function toggle() {
     const toValue = isOpen ? 0 : 1;
@@ -130,7 +143,7 @@ export function BetStatusDashboard() {
           </View>
         ) : (
           <ScrollView
-            style={styles.list}
+            style={[styles.list, { maxHeight: listMaxHeight }]}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           >
@@ -153,7 +166,7 @@ export function BetStatusDashboard() {
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    top: 48,
+    top: OVERLAY_TOP,
     right: 0,
     alignItems: "flex-end",
   },
@@ -225,7 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   list: {
-    maxHeight: 300,
+    flexShrink: 1,
   },
   listContent: {
     padding: 8,

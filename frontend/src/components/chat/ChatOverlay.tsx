@@ -54,7 +54,14 @@ export function ChatOverlay({ onBetOpportunity }: ChatOverlayProps) {
     }
   }, [chat.latestBetOpportunity]);
 
-  const panelWidth = windowWidth / 2;
+  // Keep the chat panel left of the 200 px bets panel (right: 0) with an
+  // 8 px gap. Left offset is 12 px, so max usable width = W - 200 - 8 - 12 = W - 220.
+  // Also cap at half-screen so it never feels too wide on large devices.
+  const BETS_PANEL_WIDTH = 200;
+  const panelWidth = Math.min(
+    Math.floor(windowWidth / 2),
+    windowWidth - BETS_PANEL_WIDTH - 20,
+  );
   const maxHeightRef = useRef(windowHeight / 2);
   maxHeightRef.current = windowHeight / 2;
 
@@ -171,7 +178,7 @@ export function ChatOverlay({ onBetOpportunity }: ChatOverlayProps) {
 const styles = StyleSheet.create({
   toggleBtn: {
     position: "absolute",
-    top: 48,
+    top: 64,
     left: 12,
     width: 44,
     height: 44,
@@ -183,7 +190,7 @@ const styles = StyleSheet.create({
   toggleBtnText: { fontSize: 22 },
   panel: {
     position: "absolute",
-    top: 48,
+    top: 64,
     left: 12,
     backgroundColor: COLOR_PANEL_BG,
     borderRadius: 12,
